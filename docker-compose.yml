@@ -1,0 +1,46 @@
+services:
+  rashid-backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    environment:
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT}
+      - APPLICATIONINSIGHTS_CONNECTION_STRING=${APPLICATIONINSIGHTS_CONNECTION_STRING}
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  rashid-copilotkit:
+    build:
+      context: .
+      dockerfile: docker/copilotkit/Dockerfile
+    environment:
+      - AGENT_URL=http://rashid-backend:8001
+      - RUNTIME_PORT=4001
+    expose:
+      - "4001"
+    depends_on:
+      rashid-backend:
+        condition: service_healthy
+
+  rashid-frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - rashid-copilotkit
+      - rashid-backend
+    environment:
+      - COPILOTKIT_HOST=rashid-copilotkit
+      - COPILOTKIT_PORT=4001
+      - BACKEND_HOST=rashid-backend
+      - BACKEND_PORT=8001
