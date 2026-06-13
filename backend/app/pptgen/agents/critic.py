@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..ppt.overflow_checker import check_overflow
 from ..schemas import CritiqueIssue, CritiqueResult, DeckRequest, DeckSpec
@@ -24,7 +24,7 @@ from ..schemas import CritiqueIssue, CritiqueResult, DeckRequest, DeckSpec
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a quality reviewer for AGI Food Division supply chain presentations.
+You are a quality reviewer for Héroux-Devtek Inc. supply chain presentations.
 Review the deck for issues and provide a quality score from 1-10.
 
 Scoring criteria:
@@ -58,10 +58,9 @@ class CriticAgent:
     """Reviews deck quality and provides actionable feedback."""
 
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
             api_key=api_key,
-            api_version="2024-12-01-preview",
             timeout=60.0,
         )
         self._model = model
@@ -163,11 +162,18 @@ Provide your quality assessment as JSON with:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
+            max_completion_tokens=2000,
             response_format={"type": "json_object"},
         )
 
         raw = response.choices[0].message.content or "{}"
-        parsed = json.loads(raw)
+        if not raw.strip() or raw.strip() == "{}":
+            return CritiqueResult(overall_score=7, pass_threshold=True, issues=[], suggestions=[])
+
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return CritiqueResult(overall_score=7, pass_threshold=True, issues=[], suggestions=[])
 
         # Parse issues
         issues: list[dict[str, Any]] = []

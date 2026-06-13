@@ -9,7 +9,7 @@ from .slide_spec import SlideSpec
 class DeckMetadata(BaseModel):
     """Metadata for the generated deck."""
     classification: str = "Internal — Confidential"
-    generated_by: str = "Rashid AI"
+    generated_by: str = "Atlas AI"
 
 
 class DeckSpec(BaseModel):

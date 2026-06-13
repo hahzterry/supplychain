@@ -30,7 +30,7 @@ class KPIProjector:
 
         stockout_skus = inventory.aggregate.get("skus_stockout_count", 0)
         safety_breached = inventory.aggregate.get("skus_safety_breached", 0)
-        lost_sales_aed = inventory.aggregate.get("total_lost_sales_aed", 0)
+        lost_sales_cad = inventory.aggregate.get("total_lost_sales_cad", 0)
         avg_dos_reduction = inventory.aggregate.get("avg_dos_reduction", 0)
 
         fill_rate_drop = (stockout_skus / max(1, total_skus)) * 15 + (safety_breached / max(1, total_skus)) * 5
@@ -40,7 +40,7 @@ class KPIProjector:
 
         projected_dos = max(5, kpis.inventory_dos - avg_dos_reduction)
 
-        expedite_cost_mm = lost_sales_aed * 0.15 / 1_000_000
+        expedite_cost_mm = lost_sales_cad * 0.15 / 1_000_000
         projected_wc = kpis.working_capital_mm + expedite_cost_mm
 
         surge_needed = production.feasibility != "full"
@@ -95,10 +95,10 @@ class KPIProjector:
         mitigations: list[MitigationOption] = []
 
         for alt in supply.alternative_suppliers[:3]:
-            recovery = min(2.0, alt.available_capacity_mt / 500)
+            recovery = min(2.0, alt.available_capacity_units / 500)
             mitigations.append(MitigationOption(
-                action=f"Expedite from {alt.name} ({alt.available_capacity_mt:.0f} MT available)",
-                cost_aed=round(alt.available_capacity_mt * alt.cost_premium_pct * 10, 0),
+                action=f"Expedite from {alt.name} ({alt.available_capacity_units:.0f} MT available)",
+                cost_cad=round(alt.available_capacity_units * alt.cost_premium_pct * 10, 0),
                 fill_rate_recovery=round(recovery, 1),
                 lead_time_days=alt.lead_time_days,
                 priority="high" if alt.reliability > 90 else "medium",
@@ -108,7 +108,7 @@ class KPIProjector:
             recovery = min(1.5, opt.extra_mt_per_day * opt.duration_days / 500)
             mitigations.append(MitigationOption(
                 action=opt.option,
-                cost_aed=round(opt.extra_mt_per_day * opt.duration_days * 50, 0),
+                cost_cad=round(opt.extra_mt_per_day * opt.duration_days * 50, 0),
                 fill_rate_recovery=round(recovery, 1),
                 lead_time_days=opt.duration_days,
                 priority="medium",
@@ -118,7 +118,7 @@ class KPIProjector:
         if critical_skus:
             mitigations.append(MitigationOption(
                 action=f"Pre-build safety stock for {len(critical_skus)} critical SKUs immediately",
-                cost_aed=round(len(critical_skus) * 5000, 0),
+                cost_cad=round(len(critical_skus) * 5000, 0),
                 fill_rate_recovery=round(len(critical_skus) * 0.3, 1),
                 lead_time_days=3,
                 priority="critical",
@@ -137,8 +137,8 @@ class KPIProjector:
         if stats["critical_skus"] > 0:
             parts.append(f"{stats['critical_skus']} SKUs face imminent stockout within 2 weeks.")
 
-        if agg["total_lost_sales_aed"] > 0:
-            parts.append(f"Projected lost sales: AED {agg['total_lost_sales_aed']:,.0f} over 8 weeks if no action is taken.")
+        if agg["total_lost_sales_cad"] > 0:
+            parts.append(f"Projected lost sales: CAD {agg['total_lost_sales_cad']:,.0f} over 8 weeks if no action is taken.")
 
         fill_drop = baseline["fill_rate"] - projected["fill_rate"]
         if fill_drop > 2:

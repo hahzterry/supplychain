@@ -19,6 +19,9 @@ _original_normalize = _adapters.normalize_agui_input_messages
 
 
 def _reorder_raw_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Filter out reasoning messages (emitted by models with extended thinking)
+    messages = [m for m in messages if m.get("role") != "reasoning"]
+
     tool_call_to_assistant_idx: dict[str, int] = {}
     for i, msg in enumerate(messages):
         tool_calls = msg.get("toolCalls") or msg.get("tool_calls") or []

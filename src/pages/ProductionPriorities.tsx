@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useI18n } from '../i18n';
 import { getSessionHeader } from '../App';
 import { useDetailDrawer } from '../contexts/DetailDrawerContext';
+import { setPendingChatMessage } from '../components/CopilotActions';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: '24px' },
@@ -15,7 +16,7 @@ const useStyles = makeStyles({
 
 interface Line {
   id: string; plant: string; line_name: string;
-  product_categories: string[]; capacity_mt_per_day: number;
+  product_categories: string[]; capacity_units_per_day: number;
   current_utilization_pct: number; current_sku: string | null;
   shift_pattern: string; planned_maintenance: string[];
 }
@@ -33,18 +34,32 @@ export default function ProductionPriorities() {
       .then(data => { setLines(data); setLoading(false); });
   }, []);
 
-  if (loading) return <Spinner label="Loading..." />;
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   const chartData = lines.map(l => ({
     name: l.line_name,
     utilization: l.current_utilization_pct,
-    capacity: l.capacity_mt_per_day,
+    capacity: l.capacity_units_per_day,
   }));
 
   return (
     <div className={styles.root}>
       <Text size={500} weight="bold">{t('production.title')}</Text>
       <Text size={300} style={{ color: tokens.colorNeutralForeground3 }}>{t('production.subtitle')}</Text>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[
+          { label: t('production.chip.schedule'), message: 'Show this week\'s production schedule and priorities' },
+          { label: t('production.chip.utilization'), message: 'Analyze production line utilization and idle capacity' },
+          { label: t('production.chip.bottleneck'), message: 'Which production lines are capacity constrained?' },
+          { label: t('production.chip.aog'), message: 'List current AOG and priority production orders' },
+        ].map((s, i) => (
+          <button key={i} onClick={() => setPendingChatMessage(s.message)} style={{
+            borderRadius: 18, border: '1px solid #e0d4b0', background: '#fdf8ee',
+            padding: '6px 14px', fontSize: 12, color: '#8B6914', cursor: 'pointer',
+          }}>{s.label}</button>
+        ))}
+      </div>
 
       <Card>
         <CardHeader header={<Text weight="semibold">{t('production.utilization')}</Text>} />
@@ -64,13 +79,13 @@ export default function ProductionPriorities() {
         <Table size="small">
           <TableHeader>
             <TableRow>
-              <TableHeaderCell>Line</TableHeaderCell>
-              <TableHeaderCell>Plant</TableHeaderCell>
-              <TableHeaderCell>Capacity (MT/day)</TableHeaderCell>
-              <TableHeaderCell>Utilization</TableHeaderCell>
-              <TableHeaderCell>Current SKU</TableHeaderCell>
-              <TableHeaderCell>Shifts</TableHeaderCell>
-              <TableHeaderCell>Maintenance</TableHeaderCell>
+              <TableHeaderCell>{t('common.line')}</TableHeaderCell>
+              <TableHeaderCell>{t('common.plant')}</TableHeaderCell>
+              <TableHeaderCell>{t('common.capacity')}</TableHeaderCell>
+              <TableHeaderCell>{t('common.utilization')}</TableHeaderCell>
+              <TableHeaderCell>{t('common.currentSku')}</TableHeaderCell>
+              <TableHeaderCell>{t('common.shifts')}</TableHeaderCell>
+              <TableHeaderCell>{t('common.maintenance')}</TableHeaderCell>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -82,7 +97,7 @@ export default function ProductionPriorities() {
                   </Text>
                 </TableCell>
                 <TableCell>{l.plant}</TableCell>
-                <TableCell>{l.capacity_mt_per_day}</TableCell>
+                <TableCell>{l.capacity_units_per_day}</TableCell>
                 <TableCell>
                   <Badge color={l.current_utilization_pct > 85 ? 'danger' : l.current_utilization_pct > 70 ? 'warning' : 'success'}>
                     {l.current_utilization_pct}%
@@ -90,7 +105,7 @@ export default function ProductionPriorities() {
                 </TableCell>
                 <TableCell>{l.current_sku || '—'}</TableCell>
                 <TableCell>{l.shift_pattern}</TableCell>
-                <TableCell>{l.planned_maintenance.length > 0 ? l.planned_maintenance.join(', ') : 'None'}</TableCell>
+                <TableCell>{l.planned_maintenance.length > 0 ? l.planned_maintenance.join(', ') : t('common.none')}</TableCell>
               </TableRow>
             ))}
           </TableBody>

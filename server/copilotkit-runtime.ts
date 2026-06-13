@@ -13,7 +13,7 @@ const agent = new HttpAgent({ url: `${AGENT_URL}/api/agent` });
 
 const runtime = new CopilotRuntime({
   agents: {
-    rashid_orchestrator: agent,
+    hd_orchestrator: agent,
   },
 });
 

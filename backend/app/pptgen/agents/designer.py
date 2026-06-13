@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..schemas import DeckSpec, SlideLayout, SlideSpec
 
@@ -31,7 +31,7 @@ EMPHASIS_RULES: dict[str, str] = {
 }
 
 SYSTEM_PROMPT = """\
-You are a presentation designer for AGI Food Division's supply chain team.
+You are a presentation designer for Héroux-Devtek Inc.'s supply chain team.
 Your job is to review slides and assign the best layout and emphasis for each one.
 
 Available layouts:
@@ -116,10 +116,9 @@ class DesignerAgent:
     """Assigns visual layout and emphasis to slides."""
 
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
             api_key=api_key,
-            api_version="2024-12-01-preview",
             timeout=60.0,
         )
         self._model = model
@@ -194,11 +193,20 @@ Respond with JSON: {{"slides": [{{"id": "...", "layout": "...", "emphasis": "...
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,
+            max_completion_tokens=8000,
             response_format={"type": "json_object"},
         )
 
         raw = response.choices[0].message.content or "{}"
-        parsed = json.loads(raw)
+        if not raw.strip() or raw.strip() == "{}":
+            logger.warning("DesignerAgent: empty response, returning deck unchanged")
+            return deck
+
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning("DesignerAgent: invalid JSON, returning deck unchanged")
+            return deck
 
         design_list = parsed.get("slides", [])
         valid_layouts = {layout.value for layout in SlideLayout}

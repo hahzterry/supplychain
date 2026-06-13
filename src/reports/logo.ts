@@ -1,4 +1,4 @@
-const LOGO_PATH = '/agi-logo.png';
+const LOGO_PATH = '/hd-logo.png';
 
 let _cachedBase64: string | null = null;
 let _cachedBlob: Blob | null = null;
@@ -25,4 +25,4 @@ export async function getLogoArrayBuffer(): Promise<ArrayBuffer> {
   return _cachedBlob.arrayBuffer();
 }
 
-export const LOGO_ASPECT_RATIO = 410 / 186; // width / height
+export const LOGO_ASPECT_RATIO = 600 / 100;

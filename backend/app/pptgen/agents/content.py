@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..schemas import (
     ChartData,
@@ -27,12 +27,12 @@ from ..schemas import (
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a supply chain content writer for AGI Food Division presentations.
+You are a supply chain content writer for Héroux-Devtek Inc. presentations.
 Your job is to fill slide content with real data provided in the context.
 
-AGI Food Division business units:
-- Grand Mills: flour milling operations
-- Jenan: branded consumer products
+Héroux-Devtek Inc. business units:
+- Longueuil QC: landing gear assembly & integration
+- Kitchener ON: actuation systems & flight-critical components
 - Animal Feed: livestock feed production
 - Specialty & Industrial: specialty ingredients and industrial products
 
@@ -207,10 +207,9 @@ class ContentAgent:
     """Fills slide outlines with actual supply chain data."""
 
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
             api_key=api_key,
-            api_version="2024-12-01-preview",
             timeout=60.0,
         )
         self._model = model
@@ -263,10 +262,14 @@ class ContentAgent:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.4,
+                max_completion_tokens=8000,
                 response_format={"type": "json_object"},
             )
 
             raw = response.choices[0].message.content or "{}"
+            if not raw.strip() or raw.strip() == "{}":
+                logger.warning("ContentAgent: empty response for slide '%s'", slide.title)
+                return slide
             data = json.loads(raw)
 
             # Handle nested response formats

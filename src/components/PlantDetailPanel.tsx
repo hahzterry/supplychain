@@ -28,7 +28,7 @@ interface LineDetail {
 
 interface PlantDetail {
   plant_name: string;
-  total_capacity_mt_per_day: number;
+  total_capacity_units_per_day: number;
   avg_utilization_pct: number;
   line_count: number;
   lines: LineDetail[];
@@ -52,7 +52,7 @@ export default function PlantDetailPanel({ plantId }: { plantId: string }) {
           setIsLine(true);
           setData({
             plant_name: d.line.plant,
-            total_capacity_mt_per_day: d.line.capacity_mt_per_day,
+            total_capacity_units_per_day: d.line.capacity_units_per_day,
             avg_utilization_pct: d.line.current_utilization_pct,
             line_count: 1,
             lines: [{ line: d.line, maintenance_events: d.maintenance_events, production_runs: d.production_runs }],
@@ -77,7 +77,7 @@ export default function PlantDetailPanel({ plantId }: { plantId: string }) {
         <Text size={400} weight="bold">{isLine && data.lines[0] ? data.lines[0].line.line_name : data.plant_name}</Text>
         {!isLine && <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{data.line_count} production lines</Text>}
         <div className={styles.badges}>
-          <Badge appearance="outline">Capacity: {data.total_capacity_mt_per_day} MT/day</Badge>
+          <Badge appearance="outline">Capacity: {data.total_capacity_units_per_day} units/day</Badge>
           <Badge color={utilColor as any}>Utilization: {data.avg_utilization_pct}%</Badge>
         </div>
       </div>
@@ -117,7 +117,7 @@ export default function PlantDetailPanel({ plantId }: { plantId: string }) {
                     <Text size={200} style={{ marginLeft: '6px' }}>{evt.root_cause}</Text>
                   </div>
                   <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <Text size={100}>{evt.date} | {evt.duration_hours}h | AED {evt.cost_aed?.toLocaleString()}</Text>
+                    <Text size={100}>{evt.date} | {evt.duration_hours}h | CAD {evt.cost_cad?.toLocaleString()}</Text>
                   </div>
                 </div>
               ))}

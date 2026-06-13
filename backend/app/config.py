@@ -24,7 +24,11 @@ class Settings(BaseSettings):
 
     azure_openai_endpoint: str = ""
     azure_openai_api_key: str = ""
-    azure_openai_deployment: str = "gpt-5.4-mini"
+    azure_openai_deployment: str = "Kimi-K2.6"
+
+    @property
+    def openai_base_url(self) -> str:
+        return f"{self.azure_openai_endpoint.rstrip('/')}/openai/v1"
 
     applicationinsights_connection_string: str = ""
 
@@ -32,7 +36,7 @@ class Settings(BaseSettings):
     azure_storage_container: str = "reports"
 
     app_username: str = "admin"
-    app_password: str = "rashid2026"
+    app_password: str = "atlas2026"
 
     model_config = {"env_file": str(Path(__file__).resolve().parent.parent / ".env"), "extra": "ignore"}
 

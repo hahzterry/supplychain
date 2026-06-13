@@ -1,10 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-export const TOOL_COMPLETE_EVENT = 'rashid:tool-complete';
-export const TOOL_START_EVENT = 'rashid:tool-start';
-export const ACTIONS_SUGGESTED_EVENT = 'rashid:actions-suggested';
-export const SEND_CHAT_MESSAGE_EVENT = 'rashid:send-chat-message';
+export const TOOL_COMPLETE_EVENT = 'hd:tool-complete';
+export const TOOL_START_EVENT = 'hd:tool-start';
+export const ACTIONS_SUGGESTED_EVENT = 'hd:actions-suggested';
+export const SEND_CHAT_MESSAGE_EVENT = 'hd:send-chat-message';
 
 let _pendingChatMessage: string | null = null;
 export function setPendingChatMessage(msg: string) {

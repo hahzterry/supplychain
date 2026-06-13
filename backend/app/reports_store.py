@@ -15,7 +15,7 @@ class ReportRecord:
     pages: int = 0
     blob_name: str = ""
     file_size: int = 0
-    generated_by: str = "rashid"
+    generated_by: str = "atlas"
 
 
 class ReportsStore:

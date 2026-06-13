@@ -5,12 +5,12 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a senior supply chain strategist synthesizing analysis for AGI Food Division executives.
+You are a senior supply chain strategist synthesizing analysis for Héroux-Devtek Inc. executives.
 Given all analysis components, produce a clear executive synthesis.
 
 Return JSON:
@@ -37,9 +37,9 @@ Return JSON:
 
 class Synthesizer:
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint, api_key=api_key,
-            api_version="2024-12-01-preview", timeout=60.0,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
+            api_key=api_key, timeout=60.0,
         )
         self._model = model
 
@@ -57,7 +57,7 @@ class Synthesizer:
         cascading = risks.get("cascading_risks", [])[:3]
 
         mit_summary = "\n".join(
-            f"  - [{m.get('priority', '')}] {m.get('action', '')} (AED {m.get('cost_aed', 0):,.0f}, +{m.get('fill_rate_recovery', 0)}% FR)"
+            f"  - [{m.get('priority', '')}] {m.get('action', '')} (CAD {m.get('cost_cad', 0):,.0f}, +{m.get('fill_rate_recovery', 0)}% FR)"
             for m in mitigation_options
         )
         cascade_summary = "\n".join(f"  - {c.get('risk', '')}" for c in cascading)

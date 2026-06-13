@@ -23,7 +23,7 @@ class ProductionChecker:
             if not overlap and affected_categories:
                 continue
 
-            spare = line.capacity_mt_per_day * (1 - line.current_utilization_pct / 100)
+            spare = line.capacity_units_per_day * (1 - line.current_utilization_pct / 100)
             total_spare += spare
 
             affected_lines.append({
@@ -31,7 +31,7 @@ class ProductionChecker:
                 "name": line.line_name,
                 "plant": line.plant.value,
                 "current_utilization": line.current_utilization_pct,
-                "spare_capacity_mt_day": round(spare, 1),
+                "spare_capacity_units_day": round(spare, 1),
                 "categories": [c.value if hasattr(c, 'value') else c for c in line.product_categories],
             })
 
@@ -51,9 +51,9 @@ class ProductionChecker:
             line_id = params.get("line_id", "")
             lost_line = next((l for l in lines if l.id == line_id), None)
             if lost_line:
-                lost_capacity = lost_line.capacity_mt_per_day * (lost_line.current_utilization_pct / 100)
+                lost_capacity = lost_line.capacity_units_per_day * (lost_line.current_utilization_pct / 100)
                 other_lines = [l for l in affected_lines if l["id"] != line_id]
-                redistributable = sum(l["spare_capacity_mt_day"] for l in other_lines)
+                redistributable = sum(l["spare_capacity_units_day"] for l in other_lines)
                 options.append(ProductionOption(
                     option=f"Redistribute {lost_line.line_name} production to other lines",
                     extra_mt_per_day=round(min(redistributable, lost_capacity), 1),

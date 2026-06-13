@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..schemas import (
     ChartData,
@@ -29,7 +29,7 @@ from ..schemas import (
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a supply chain presentation repair agent for AGI Food Division.
+You are a supply chain presentation repair agent for Héroux-Devtek Inc..
 Your job is to fix specific issues identified in a quality review.
 
 When fixing slides:
@@ -48,10 +48,9 @@ class RepairAgent:
     """Fixes quality issues identified by CriticAgent."""
 
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
             api_key=api_key,
-            api_version="2024-12-01-preview",
             timeout=60.0,
         )
         self._model = model
@@ -212,11 +211,17 @@ Remember:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,
+            max_completion_tokens=8000,
             response_format={"type": "json_object"},
         )
 
         raw = response.choices[0].message.content or "{}"
-        data = json.loads(raw)
+        if not raw.strip() or raw.strip() == "{}":
+            return slide
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return slide
 
         # Parse repaired slide
         title = data.get("title", slide.title)

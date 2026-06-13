@@ -4,9 +4,9 @@ import { uploadReport } from '../reports';
 import { getLogoBase64, LOGO_ASPECT_RATIO } from '../reports/logo';
 import type { DocSpec, DocSection } from '../reports/types';
 
-const AGI_NAVY: [number, number, number] = [26, 10, 46];
-const AGI_BLUE: [number, number, number] = [196, 40, 122];
-const TABLE_HEADER: [number, number, number] = [46, 20, 82];
+const HD_NAVY: [number, number, number] = [0, 31, 63];
+const HD_GOLD: [number, number, number] = [212, 147, 13];
+const TABLE_HEADER: [number, number, number] = [0, 21, 41];
 const DARK_GRAY: [number, number, number] = [51, 51, 51];
 const LIGHT_GRAY: [number, number, number] = [150, 150, 150];
 const MEDIUM_GRAY: [number, number, number] = [102, 102, 102];
@@ -48,13 +48,13 @@ class PDFBuilder {
       PAGE_HEIGHT - 12,
       { align: 'center' }
     );
-    this.doc.setFillColor(...AGI_NAVY);
+    this.doc.setFillColor(...HD_NAVY);
     this.doc.rect(0, PAGE_HEIGHT - 6, PAGE_WIDTH, 6, 'F');
   }
 
   renderTitlePage(spec: DocSpec, logoBase64?: string) {
     // Navy header bar
-    this.doc.setFillColor(...AGI_NAVY);
+    this.doc.setFillColor(...HD_NAVY);
     this.doc.rect(0, 0, PAGE_WIDTH, 60, 'F');
 
     // Logo on navy background
@@ -65,21 +65,21 @@ class PDFBuilder {
     }
 
     // Magenta accent line
-    this.doc.setFillColor(...AGI_BLUE);
+    this.doc.setFillColor(...HD_GOLD);
     this.doc.rect(20, 50, 30, 1.5, 'F');
 
     this.y = 80;
 
     // Title
     this.doc.setFontSize(22);
-    this.doc.setTextColor(...AGI_NAVY);
+    this.doc.setTextColor(...HD_NAVY);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(spec.title, PAGE_WIDTH / 2, this.y, { align: 'center' });
     this.y += 14;
 
     // Subtitle
     this.doc.setFontSize(14);
-    this.doc.setTextColor(...AGI_BLUE);
+    this.doc.setTextColor(...HD_GOLD);
     this.doc.setFont('helvetica', 'normal');
     this.doc.text(spec.subtitle, PAGE_WIDTH / 2, this.y, { align: 'center' });
     this.y += 20;
@@ -99,7 +99,7 @@ class PDFBuilder {
 
   renderExecutiveSummary(text: string) {
     this.doc.setFontSize(18);
-    this.doc.setTextColor(...AGI_NAVY);
+    this.doc.setTextColor(...HD_NAVY);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text('Executive Summary', MARGIN_LEFT, this.y);
     this.y += 10;
@@ -117,10 +117,10 @@ class PDFBuilder {
     // Section heading
     this.checkPageBreak(20);
     // Accent bar before heading
-    this.doc.setFillColor(...AGI_BLUE);
+    this.doc.setFillColor(...HD_GOLD);
     this.doc.rect(MARGIN_LEFT, this.y - 5, 2, 8, 'F');
     this.doc.setFontSize(15);
-    this.doc.setTextColor(...AGI_NAVY);
+    this.doc.setTextColor(...HD_NAVY);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(section.title, MARGIN_LEFT + 5, this.y);
     this.y += 8;
@@ -223,7 +223,7 @@ export async function renderPDF(spec: DocSpec): Promise<void> {
 
   await uploadReport(blob, filename, {
     name: spec.title,
-    template: 'agi_food_pdf',
+    template: 'hd_pdf',
     format: 'pdf',
     pages: builder.getPageCount(),
   });

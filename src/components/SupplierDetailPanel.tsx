@@ -4,6 +4,7 @@ import {
 } from '@fluentui/react-components';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { getSessionHeader } from '../App';
+import { useI18n } from '../i18n';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '24px' },
@@ -31,6 +32,7 @@ interface SupplierDetail {
 
 export default function SupplierDetailPanel({ supplierId }: { supplierId: string }) {
   const styles = useStyles();
+  const { lang } = useI18n();
   const [data, setData] = useState<SupplierDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +63,7 @@ export default function SupplierDetailPanel({ supplierId }: { supplierId: string
       {/* Header */}
       <div className={styles.header}>
         <Text size={400} weight="bold">{supplier.name}</Text>
-        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{supplier.name_ar} — {supplier.country}</Text>
+        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{lang === 'es' ? supplier.name_es : supplier.name_fr} — {supplier.country}</Text>
         <div className={styles.badges}>
           <Badge color={reliabilityColor as any}>Reliability: {supplier.reliability_score}%</Badge>
           <Badge appearance="outline">Quality: {supplier.quality_score}</Badge>
@@ -89,7 +91,7 @@ export default function SupplierDetailPanel({ supplierId }: { supplierId: string
           </div>
           <div className={styles.metricCard}>
             <div className={styles.metricLabel}>Total Capacity</div>
-            <div className={styles.metricValue}>{(supplier.total_capacity_mt / 1000).toFixed(0)}K MT</div>
+            <div className={styles.metricValue}>{(supplier.total_capacity_units / 1000).toFixed(0)}K MT</div>
           </div>
         </div>
       </div>

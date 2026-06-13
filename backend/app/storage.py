@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .config import settings
 
-LOCAL_STORAGE_DIR = Path("/tmp/rashid_reports")
+LOCAL_STORAGE_DIR = Path("/tmp/hd_reports")
 
 
 class BlobStorageService:

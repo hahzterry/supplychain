@@ -8,6 +8,7 @@ import {
 import { useI18n } from '../i18n';
 import { getSessionHeader } from '../App';
 import { useDetailDrawer } from '../contexts/DetailDrawerContext';
+import { setPendingChatMessage } from '../components/CopilotActions';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: '24px' },
@@ -33,7 +34,7 @@ export default function DemandForecast() {
   const { t } = useI18n();
   const { openSkuDetail } = useDetailDrawer();
   const [forecasts, setForecasts] = useState<Forecast[]>([]);
-  const [selectedSku, setSelectedSku] = useState('FL001');
+  const [selectedSku, setSelectedSku] = useState('');
   const [skus, setSkus] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const pendingCheckRef = useRef(false);
@@ -41,7 +42,9 @@ export default function DemandForecast() {
   useEffect(() => {
     const headers = getSessionHeader();
     fetch('/api/skus', { headers }).then(r => r.json()).then(data => {
-      setSkus(data.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
+      const mapped = data.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
+      setSkus(mapped);
+      if (!selectedSku && mapped.length) setSelectedSku(mapped[0].id);
     });
   }, []);
 
@@ -67,6 +70,7 @@ export default function DemandForecast() {
   }, [selectedSku]);
 
   useEffect(() => {
+    if (!selectedSku) return;
     setLoading(true);
     const headers = getSessionHeader();
     fetch(`/api/demand/forecast?sku_id=${selectedSku}`, { headers })
@@ -88,6 +92,20 @@ export default function DemandForecast() {
       <Text size={500} weight="bold">{t('demand.title')}</Text>
       <Text size={300} style={{ color: tokens.colorNeutralForeground3 }}>{t('demand.subtitle')}</Text>
 
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[
+          { label: t('demand.chip.accuracy'), message: 'Analyze demand forecast accuracy trends across all programs' },
+          { label: t('demand.chip.spikes'), message: 'Which SKUs show abnormal demand spikes in the next 4 weeks?' },
+          { label: t('demand.chip.seasonal'), message: 'Compare seasonal demand patterns for landing gear assemblies' },
+          { label: t('demand.chip.program'), message: 'Show demand forecast breakdown for A320 program' },
+        ].map((s, i) => (
+          <button key={i} onClick={() => setPendingChatMessage(s.message)} style={{
+            borderRadius: 18, border: '1px solid #e0d4b0', background: '#fdf8ee',
+            padding: '6px 14px', fontSize: 12, color: '#8B6914', cursor: 'pointer',
+          }}>{s.label}</button>
+        ))}
+      </div>
+
       <div className={styles.controls}>
         <Dropdown
           placeholder={t('demand.selectSku')}
@@ -101,25 +119,25 @@ export default function DemandForecast() {
           style={{ cursor: 'pointer', color: tokens.colorBrandForeground1 }}
           onClick={() => openSkuDetail(selectedSku)}
         >
-          View SKU Detail
+          {t('demand.viewSkuDetail')}
         </Text>
       </div>
 
       {loading ? <Spinner /> : (
         <Card className={styles.chartCard}>
-          <CardHeader header={<Text weight="semibold">8-Week Forecast with Confidence Bands</Text>} />
+          <CardHeader header={<Text weight="semibold">{t('demand.chartTitle')}</Text>} />
           <ResponsiveContainer width="100%" height={350}>
             <AreaChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="week" />
-              <YAxis />
+              <YAxis domain={[0, (max: number) => Math.ceil(max * 1.1)]} />
               <Tooltip />
               <Legend />
-              <Area type="monotone" dataKey="upper95" stackId="1" stroke="none" fill="#c8e6c9" name="95% CI" />
-              <Area type="monotone" dataKey="upper80" stackId="2" stroke="none" fill="#81c784" name="80% CI" />
-              <Area type="monotone" dataKey="forecast" stroke="#2e7d32" fill="#388e3c" fillOpacity={0.3} name="Point Forecast" strokeWidth={2} />
-              <Area type="monotone" dataKey="lower80" stackId="3" stroke="none" fill="#81c784" />
-              <Area type="monotone" dataKey="lower95" stackId="4" stroke="none" fill="#c8e6c9" />
+              <Area type="monotone" dataKey="upper95" stroke="none" fill="#c8e6c9" fillOpacity={0.4} name={t('demand.ci95')} />
+              <Area type="monotone" dataKey="upper80" stroke="none" fill="#81c784" fillOpacity={0.5} name={t('demand.ci80')} />
+              <Area type="monotone" dataKey="forecast" stroke="#2e7d32" fill="#388e3c" fillOpacity={0.3} name={t('demand.pointForecast')} strokeWidth={2} />
+              <Area type="monotone" dataKey="lower80" stroke="none" fill="#81c784" fillOpacity={0.5} />
+              <Area type="monotone" dataKey="lower95" stroke="none" fill="#c8e6c9" fillOpacity={0.4} />
             </AreaChart>
           </ResponsiveContainer>
         </Card>
@@ -127,21 +145,21 @@ export default function DemandForecast() {
 
       <div className={styles.statsRow}>
         <Card style={{ padding: '16px' }}>
-          <Text weight="semibold">High Confidence</Text>
+          <Text weight="semibold">{t('demand.highConfidence')}</Text>
           <Text size={600} weight="bold">{forecasts.filter(f => f.confidence === 'high').length}</Text>
-          <Text size={200}>periods</Text>
+          <Text size={200}>{t('demand.periods')}</Text>
         </Card>
         <Card style={{ padding: '16px' }}>
-          <Text weight="semibold">Medium Confidence</Text>
+          <Text weight="semibold">{t('demand.mediumConfidence')}</Text>
           <Text size={600} weight="bold">{forecasts.filter(f => f.confidence === 'medium').length}</Text>
-          <Text size={200}>periods</Text>
+          <Text size={200}>{t('demand.periods')}</Text>
         </Card>
         <Card style={{ padding: '16px' }}>
-          <Text weight="semibold">Avg Forecast</Text>
+          <Text weight="semibold">{t('demand.avgForecast')}</Text>
           <Text size={600} weight="bold">
             {forecasts.length ? Math.round(forecasts.reduce((s, f) => s + f.point_forecast, 0) / forecasts.length) : 0}
           </Text>
-          <Text size={200}>units/week</Text>
+          <Text size={200}>{t('demand.unitsWeek')}</Text>
         </Card>
       </div>
     </div>

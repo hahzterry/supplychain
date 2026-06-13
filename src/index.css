@@ -26,9 +26,22 @@ body {
   height: 100vh;
 }
 
-/* CopilotKit chat overrides */
-.rashid-chat {
-  height: 100% !important;
-  border: none !important;
-  border-radius: 0 !important;
+/* Chat markdown styles */
+.chat-markdown p { margin: 0 0 8px 0; }
+.chat-markdown p:last-child { margin-bottom: 0; }
+.chat-markdown ul, .chat-markdown ol { margin: 4px 0 8px 16px; padding: 0; }
+.chat-markdown li { margin-bottom: 2px; }
+.chat-markdown table { border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%; }
+.chat-markdown th, .chat-markdown td { border: 1px solid #ddd; padding: 4px 8px; text-align: left; }
+.chat-markdown th { background: #f0f0f0; font-weight: 600; }
+.chat-markdown code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+.chat-markdown pre { background: #f5f5f5; padding: 8px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+.chat-markdown pre code { background: none; padding: 0; }
+.chat-markdown strong { font-weight: 600; }
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { margin: 8px 0 4px; font-size: 14px; font-weight: 600; }
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
+.spin-slow { display: inline-block; animation: spin-slow 2s linear infinite; }

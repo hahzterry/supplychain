@@ -5,6 +5,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { getSessionHeader } from '../App';
 import { useDetailDrawer } from '../contexts/DetailDrawerContext';
+import { useI18n } from '../i18n';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '24px' },
@@ -36,20 +37,29 @@ interface SkuDetail {
 
 export default function SkuDetailPanel({ skuId }: { skuId: string }) {
   const styles = useStyles();
+  const { lang } = useI18n();
   const { openSupplierDetail } = useDetailDrawer();
   const [data, setData] = useState<SkuDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetch(`/api/skus/${skuId}/detail`, { headers: getSessionHeader() })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(r.status === 404 ? 'not_found' : 'network');
+        return r.json();
+      })
       .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch(e => {
+        setError(e.message === 'not_found' ? `SKU "${skuId}" not found — check the SKU ID and try again.` : 'Unable to load SKU detail — check connection.');
+        setLoading(false);
+      });
   }, [skuId]);
 
   if (loading) return <Spinner label="Loading SKU details..." />;
-  if (!data) return <Text>SKU not found.</Text>;
+  if (error || !data) return <Text style={{ padding: 16, color: '#666' }}>{error || 'SKU not found.'}</Text>;
 
   const { sku, inventory, forecasts, alternatives, quality_results, alerts, purchase_orders, production_lines } = data;
 
@@ -72,12 +82,12 @@ export default function SkuDetailPanel({ skuId }: { skuId: string }) {
       {/* Header */}
       <div className={styles.header}>
         <Text size={400} weight="bold">{sku.name}</Text>
-        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{sku.id} — {sku.name_ar}</Text>
+        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{sku.id} — {lang === 'es' ? sku.name_es : sku.name_fr}</Text>
         <div className={styles.badges}>
           <Badge appearance="filled" color="brand">{sku.category}</Badge>
           <Badge appearance="outline">{sku.brand}</Badge>
-          <Badge appearance="outline">ABC: {sku.abc_class}</Badge>
-          <Badge appearance="outline">XYZ: {sku.xyz_class}</Badge>
+          <Badge appearance="outline">ABC: {{ A: 'High Value', B: 'Medium Value', C: 'Low Value' }[sku.abc_class] || sku.abc_class} ({sku.abc_class})</Badge>
+          <Badge appearance="outline">XYZ: {{ X: 'Stable Demand', Y: 'Variable Demand', Z: 'Irregular Demand' }[sku.xyz_class] || sku.xyz_class} ({sku.xyz_class})</Badge>
           {sku.active ? <Badge color="success">Active</Badge> : <Badge color="danger">Inactive</Badge>}
         </div>
       </div>
@@ -111,7 +121,7 @@ export default function SkuDetailPanel({ skuId }: { skuId: string }) {
             </div>
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Shelf Life</div>
-              <div className={styles.metricValue}>{inventory.shelf_life_remaining_pct}%</div>
+              <div className={styles.metricValue}>{inventory.cert_expiry_remaining_pct}%</div>
             </div>
           </div>
           <Badge color={riskColor(inventory.risk_level)} size="small">Risk: {inventory.risk_level}</Badge>

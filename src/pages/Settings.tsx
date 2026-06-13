@@ -10,7 +10,9 @@ const useStyles = makeStyles({
 
 export default function Settings() {
   const styles = useStyles();
-  const { t, lang, toggle } = useI18n();
+  const { t, lang, setLang } = useI18n();
+
+  const langLabel = lang === 'en' ? 'English' : lang === 'fr' ? 'Français' : 'Español';
 
   return (
     <div className={styles.root}>
@@ -19,10 +21,11 @@ export default function Settings() {
       <Card>
         <CardHeader header={<Text weight="semibold">{t('settings.language')}</Text>} />
         <div className={styles.settingRow}>
-          <Text>Interface Language</Text>
-          <Dropdown value={lang === 'en' ? 'English' : 'العربية'} onOptionSelect={() => toggle()}>
+          <Text>{t('settings.interfaceLanguage')}</Text>
+          <Dropdown value={langLabel} onOptionSelect={(_, d) => setLang(d.optionValue as 'en' | 'fr' | 'es')}>
             <Option value="en">English</Option>
-            <Option value="ar">العربية</Option>
+            <Option value="fr">Français</Option>
+            <Option value="es">Español</Option>
           </Dropdown>
         </div>
       </Card>
@@ -30,19 +33,19 @@ export default function Settings() {
       <Card>
         <CardHeader header={<Text weight="semibold">{t('settings.alertPrefs')}</Text>} />
         <div className={styles.settingRow}>
-          <Text>Stockout Alerts</Text>
+          <Text>{t('settings.stockoutAlerts')}</Text>
           <Switch defaultChecked />
         </div>
         <div className={styles.settingRow}>
-          <Text>Excess Inventory Alerts</Text>
+          <Text>{t('settings.excessAlerts')}</Text>
           <Switch defaultChecked />
         </div>
         <div className={styles.settingRow}>
-          <Text>Delivery Delay Alerts</Text>
+          <Text>{t('settings.deliveryAlerts')}</Text>
           <Switch defaultChecked />
         </div>
         <div className={styles.settingRow}>
-          <Text>Capacity Constraint Alerts</Text>
+          <Text>{t('settings.capacityAlerts')}</Text>
           <Switch />
         </div>
       </Card>
@@ -50,16 +53,16 @@ export default function Settings() {
       <Card>
         <CardHeader header={<Text weight="semibold">{t('settings.dataSources')}</Text>} />
         <div className={styles.settingRow}>
-          <Text>ERP Connection</Text>
-          <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>Connected (Mock)</Text>
+          <Text>{t('settings.erp')}</Text>
+          <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>{t('settings.connected')}</Text>
         </div>
         <div className={styles.settingRow}>
-          <Text>POS / Sell-Out Feed</Text>
-          <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>Connected (Mock)</Text>
+          <Text>{t('settings.pos')}</Text>
+          <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>{t('settings.connected')}</Text>
         </div>
         <div className={styles.settingRow}>
-          <Text>Production Planning System</Text>
-          <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>Connected (Mock)</Text>
+          <Text>{t('settings.pps')}</Text>
+          <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>{t('settings.connected')}</Text>
         </div>
       </Card>
     </div>

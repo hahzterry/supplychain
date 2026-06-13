@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useI18n } from '../i18n';
 import { getSessionHeader } from '../App';
 import { useDetailDrawer } from '../contexts/DetailDrawerContext';
+import { setPendingChatMessage } from '../components/CopilotActions';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: '24px' },
@@ -29,7 +30,7 @@ interface Position {
   available_stock: number;
   days_of_supply: number;
   risk_level: string;
-  shelf_life_remaining_pct: number;
+  cert_expiry_remaining_pct: number;
 }
 
 export default function InventoryHealth() {
@@ -52,7 +53,7 @@ export default function InventoryHealth() {
     });
   }, []);
 
-  if (loading) return <Spinner label="Loading..." />;
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   const riskData = Object.entries(riskMatrix).map(([name, value]) => ({ name, value }));
 
@@ -67,6 +68,20 @@ export default function InventoryHealth() {
     <div className={styles.root}>
       <Text size={500} weight="bold">{t('inventory.title')}</Text>
       <Text size={300} style={{ color: tokens.colorNeutralForeground3 }}>{t('inventory.subtitle')}</Text>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[
+          { label: t('inventory.chip.stockout'), message: 'Which SKUs are at risk of stockout in the next 2 weeks?' },
+          { label: t('inventory.chip.overstock'), message: 'Identify overstocked items with more than 90 days of supply' },
+          { label: t('inventory.chip.aging'), message: 'Review inventory aging for critical MRO parts' },
+          { label: t('inventory.chip.dos'), message: 'Show days-of-supply breakdown by aircraft program' },
+        ].map((s, i) => (
+          <button key={i} onClick={() => setPendingChatMessage(s.message)} style={{
+            borderRadius: 18, border: '1px solid #e0d4b0', background: '#fdf8ee',
+            padding: '6px 14px', fontSize: 12, color: '#8B6914', cursor: 'pointer',
+          }}>{s.label}</button>
+        ))}
+      </div>
 
       <div className={styles.topRow}>
         <Card className={styles.riskCard}>
@@ -85,7 +100,7 @@ export default function InventoryHealth() {
             {riskData.map(r => (
               <div key={r.name} className={styles.riskItem}>
                 <Text size={200} style={{ textTransform: 'capitalize' }}>{r.name}</Text>
-                <Badge appearance="filled" color={severityColor(r.name)}>{r.value} SKUs</Badge>
+                <Badge appearance="filled" color={severityColor(r.name)}>{r.value} {t('common.skus')}</Badge>
               </div>
             ))}
           </div>
@@ -97,12 +112,12 @@ export default function InventoryHealth() {
             <Table size="small">
               <TableHeader>
                 <TableRow>
-                  <TableHeaderCell>SKU</TableHeaderCell>
-                  <TableHeaderCell>Category</TableHeaderCell>
-                  <TableHeaderCell>DOS</TableHeaderCell>
-                  <TableHeaderCell>Stock</TableHeaderCell>
-                  <TableHeaderCell>Risk</TableHeaderCell>
-                  <TableHeaderCell>Shelf Life</TableHeaderCell>
+                  <TableHeaderCell>{t('common.sku')}</TableHeaderCell>
+                  <TableHeaderCell>{t('common.category')}</TableHeaderCell>
+                  <TableHeaderCell>{t('common.dos')}</TableHeaderCell>
+                  <TableHeaderCell>{t('common.stock')}</TableHeaderCell>
+                  <TableHeaderCell>{t('common.risk')}</TableHeaderCell>
+                  <TableHeaderCell>{t('common.shelfLife')}</TableHeaderCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -117,7 +132,7 @@ export default function InventoryHealth() {
                     <TableCell><Text weight="semibold">{p.days_of_supply}</Text></TableCell>
                     <TableCell>{p.current_stock.toLocaleString()}</TableCell>
                     <TableCell><Badge color={severityColor(p.risk_level)} size="small">{p.risk_level}</Badge></TableCell>
-                    <TableCell>{p.shelf_life_remaining_pct}%</TableCell>
+                    <TableCell>{p.cert_expiry_remaining_pct}%</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

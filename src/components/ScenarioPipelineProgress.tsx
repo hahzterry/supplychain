@@ -3,11 +3,12 @@ import { useI18n, type Lang } from '../i18n';
 import { getSessionHeader } from '../App';
 
 const STEPS = [
-  { key: 'demand_analysis', en: 'Demand Analyzer', ar: 'محلل الطلب' },
-  { key: 'inventory_simulation', en: 'Inventory Simulator', ar: 'محاكي المخزون' },
-  { key: 'supply_evaluation', en: 'Supply Evaluator', ar: 'مقيّم التوريد' },
-  { key: 'production_check', en: 'Production Checker', ar: 'فاحص الإنتاج' },
-  { key: 'kpi_projection', en: 'KPI Projector', ar: 'متنبئ المؤشرات' },
+  { key: 'demand_analysis', en: 'Demand Analyzer', fr: 'Analyseur de demande', es: 'Analizador de demanda' },
+  { key: 'inventory_simulation', en: 'Inventory Simulator', fr: 'Simulateur d\'inventaire', es: 'Simulador de inventario' },
+  { key: 'supply_evaluation', en: 'Supply Evaluator', fr: 'Évaluateur d\'approvisionnement', es: 'Evaluador de suministro' },
+  { key: 'production_check', en: 'Production Checker', fr: 'Vérificateur de production', es: 'Verificador de producción' },
+  { key: 'kpi_projection', en: 'KPI Projector', fr: 'Projecteur d\'indicateurs', es: 'Proyector de indicadores' },
+  { key: 'analysis', en: 'Risk Analyst', fr: 'Analyste de risque', es: 'Analista de riesgo' },
 ];
 
 interface Props {
@@ -65,16 +66,16 @@ export function ScenarioPipelineProgress({ isComplete, onResult }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <span style={{ fontSize: 16 }}>🔬</span>
         <span style={{ fontWeight: 600, fontSize: 14, color: '#1565c0' }}>
-          {lang === 'ar' ? 'خط تحليل السيناريو' : 'Scenario Analysis Pipeline'}
+          {lang === 'fr' ? 'Pipeline d\'analyse de scénario' : lang === 'es' ? 'Pipeline de análisis de escenario' : 'Scenario Analysis Pipeline'}
         </span>
         {!allDone && (
           <span style={{ marginLeft: 'auto', fontSize: 11, color: '#666' }}>
-            {lang === 'ar' ? 'جارٍ التنفيذ...' : 'Running agents...'}
+            {lang === 'fr' ? 'Agents en cours...' : lang === 'es' ? 'Agentes en ejecución...' : 'Running agents...'}
           </span>
         )}
         {allDone && (
           <span style={{ marginLeft: 'auto', fontSize: 11, color: '#2e7d32', fontWeight: 600 }}>
-            {lang === 'ar' ? 'اكتمل' : 'Complete'}
+            {lang === 'fr' ? 'Terminé' : lang === 'es' ? 'Completado' : 'Complete'}
           </span>
         )}
       </div>

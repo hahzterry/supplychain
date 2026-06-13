@@ -5,12 +5,12 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a supply chain scenario planning agent for AGI Food Division (UAE-based FMCG).
+You are a supply chain scenario planning agent for Héroux-Devtek Inc. (Canadian aerospace).
 Given a natural language scenario description and supply chain data context,
 produce a structured analysis plan.
 
@@ -60,9 +60,9 @@ Always include at least one affected category based on what the scenario describ
 
 class ScenarioPlanner:
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint, api_key=api_key,
-            api_version="2024-12-01-preview", timeout=60.0,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
+            api_key=api_key, timeout=60.0,
         )
         self._model = model
 

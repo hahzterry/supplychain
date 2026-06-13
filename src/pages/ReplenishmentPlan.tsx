@@ -6,6 +6,7 @@ import {
 import { useI18n } from '../i18n';
 import { getSessionHeader } from '../App';
 import { useDetailDrawer } from '../contexts/DetailDrawerContext';
+import { setPendingChatMessage } from '../components/CopilotActions';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: '24px' },
@@ -62,7 +63,7 @@ export default function ReplenishmentPlan() {
     setActions(prev => prev.filter(a => a.id !== id));
   };
 
-  if (loading) return <Spinner label="Loading..." />;
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   const urgencyColor = (u: string) => {
     if (u === 'critical') return 'danger' as const;
@@ -75,6 +76,20 @@ export default function ReplenishmentPlan() {
       <Text size={500} weight="bold">{t('replenishment.title')}</Text>
       <Text size={300} style={{ color: tokens.colorNeutralForeground3 }}>{t('replenishment.subtitle')}</Text>
 
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[
+          { label: t('replenishment.chip.urgent'), message: 'What are the most urgent replenishment actions needed today?' },
+          { label: t('replenishment.chip.status'), message: 'Review open purchase orders at risk of delay' },
+          { label: t('replenishment.chip.safety'), message: 'Which items are below safety stock levels?' },
+          { label: t('replenishment.chip.expedite'), message: 'Identify orders that should be expedited this week' },
+        ].map((s, i) => (
+          <button key={i} onClick={() => setPendingChatMessage(s.message)} style={{
+            borderRadius: 18, border: '1px solid #e0d4b0', background: '#fdf8ee',
+            padding: '6px 14px', fontSize: 12, color: '#8B6914', cursor: 'pointer',
+          }}>{s.label}</button>
+        ))}
+      </div>
+
       <div className={styles.actionsList}>
         {actions.map(action => (
           <Card key={action.id} className={styles.actionCard}>
@@ -86,9 +101,9 @@ export default function ReplenishmentPlan() {
             </div>
             <div className={styles.actionMeta}>
               <Badge appearance="outline" size="small">{action.action_type.replace('_', ' ')}</Badge>
-              <Badge appearance="outline" size="small">Qty: {action.recommended_qty}</Badge>
-              <Badge appearance="outline" size="small">Confidence: {action.confidence}</Badge>
-              <Badge appearance="outline" size="small">Scenario: {action.scenario}</Badge>
+              <Badge appearance="outline" size="small">{t('replenishment.qty')}: {action.recommended_qty}</Badge>
+              <Badge appearance="outline" size="small">{t('replenishment.confidence')}: {action.confidence}</Badge>
+              <Badge appearance="outline" size="small">{t('replenishment.scenario')}: {action.scenario}</Badge>
             </div>
             <Text size={200}>{action.rationale}</Text>
             <div className={styles.kpiImpact}>
@@ -106,35 +121,35 @@ export default function ReplenishmentPlan() {
             </div>
           </Card>
         ))}
-        {actions.length === 0 && <Text>All actions have been reviewed.</Text>}
+        {actions.length === 0 && <Text>{t('replenishment.allReviewed')}</Text>}
       </div>
 
       <Dialog open={!!confirmAction} onOpenChange={(_, d) => { if (!d.open) setConfirmAction(null); }}>
         <DialogSurface>
           <DialogBody>
-            <DialogTitle>Confirm Approval</DialogTitle>
+            <DialogTitle>{t('replenishment.confirmApproval')}</DialogTitle>
             <DialogContent>
               {confirmAction && (
                 <div className={styles.dialogDetail}>
                   <Text weight="semibold" size={400}>{confirmAction.sku_name}</Text>
                   <div className={styles.dialogRow}>
-                    <Text size={200}>Action Type</Text>
+                    <Text size={200}>{t('replenishment.actionType')}</Text>
                     <Text size={200} weight="semibold">{confirmAction.action_type.replace('_', ' ')}</Text>
                   </div>
                   <div className={styles.dialogRow}>
-                    <Text size={200}>Recommended Quantity</Text>
+                    <Text size={200}>{t('replenishment.recommendedQty')}</Text>
                     <Text size={200} weight="semibold">{confirmAction.recommended_qty}</Text>
                   </div>
                   <div className={styles.dialogRow}>
-                    <Text size={200}>Urgency</Text>
+                    <Text size={200}>{t('replenishment.urgency')}</Text>
                     <Badge color={urgencyColor(confirmAction.urgency)} size="small">{confirmAction.urgency}</Badge>
                   </div>
                   <div className={styles.dialogRow}>
-                    <Text size={200}>Confidence</Text>
+                    <Text size={200}>{t('replenishment.confidence')}</Text>
                     <Text size={200} weight="semibold">{confirmAction.confidence}</Text>
                   </div>
                   <Text size={200} style={{ marginTop: '8px' }}>{confirmAction.rationale}</Text>
-                  <Text size={200} weight="semibold" style={{ marginTop: '12px' }}>KPI Impact</Text>
+                  <Text size={200} weight="semibold" style={{ marginTop: '12px' }}>{t('replenishment.kpiImpact')}</Text>
                   <div className={styles.dialogKpis}>
                     {Object.entries(confirmAction.kpi_impact).map(([k, v]) => (
                       <div key={k} className={styles.dialogKpiCard}>
@@ -149,9 +164,9 @@ export default function ReplenishmentPlan() {
               )}
             </DialogContent>
             <DialogActions>
-              <Button appearance="secondary" onClick={() => setConfirmAction(null)}>Cancel</Button>
+              <Button appearance="secondary" onClick={() => setConfirmAction(null)}>{t('common.cancel')}</Button>
               <Button appearance="primary" onClick={handleConfirmApprove} disabled={approving}>
-                {approving ? 'Approving...' : 'Confirm Approval'}
+                {approving ? t('replenishment.approving') : t('replenishment.confirmApproval')}
               </Button>
             </DialogActions>
           </DialogBody>

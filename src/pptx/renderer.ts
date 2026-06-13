@@ -4,10 +4,10 @@ import { uploadReport } from '../reports';
 import { getLogoBase64, LOGO_ASPECT_RATIO } from '../reports/logo';
 import type { DeckSpec, SlideSpec } from '../reports/types';
 
-const AGI_NAVY = '1A0A2E';
-const AGI_BLUE = 'C4287A';
-const AGI_DARK_BLUE = '2E1452';
-const AGI_LIGHT = 'FBF4FC';
+const HD_NAVY = '001F3F';
+const HD_GOLD = 'D4930D';
+const HD_DARK = '001529';
+const HD_LIGHT = 'F2F8FE';
 const WHITE = 'FFFFFF';
 const DARK_GRAY = '333333';
 
@@ -19,12 +19,12 @@ function setupMaster(pptx: PptxGenJS, logoBase64?: string) {
         y: '92%',
         w: '100%',
         h: '8%',
-        fill: { color: AGI_NAVY },
+        fill: { color: HD_NAVY },
       },
     },
     {
       text: {
-        text: 'AGI Food Division',
+        text: 'Héroux-Devtek Inc.',
         options: {
           x: 0.3,
           y: '93%',
@@ -42,16 +42,16 @@ function setupMaster(pptx: PptxGenJS, logoBase64?: string) {
     objects.push({
       image: {
         data: `data:image/png;base64,${logoBase64}`,
-        x: 11.0,
+        x: 10.0,
         y: 0.15,
-        w: 2.0,
-        h: 0.6,
+        w: 3.0,
+        h: 0.5,
       },
     });
   }
 
   pptx.defineSlideMaster({
-    title: 'AGI_FOOD_MASTER',
+    title: 'HD_MASTER',
     background: { color: WHITE },
     objects,
   });
@@ -59,7 +59,7 @@ function setupMaster(pptx: PptxGenJS, logoBase64?: string) {
 
 function renderTitleSlide(pptx: PptxGenJS, slide: SlideSpec, logoBase64?: string) {
   const s = pptx.addSlide();
-  s.background = { color: AGI_NAVY };
+  s.background = { color: HD_NAVY };
 
   if (logoBase64) {
     const logoH = 0.9;
@@ -73,14 +73,13 @@ function renderTitleSlide(pptx: PptxGenJS, slide: SlideSpec, logoBase64?: string
     });
   }
 
-  // Magenta accent line
   s.addShape(pptx.ShapeType.rect, {
     x: 1.0,
     y: 1.8,
     w: 1.5,
     h: 0.06,
-    fill: { color: AGI_BLUE },
-    line: { color: AGI_BLUE, width: 0 },
+    fill: { color: HD_GOLD },
+    line: { color: HD_GOLD, width: 0 },
   });
 
   s.addText(slide.title, {
@@ -99,7 +98,7 @@ function renderTitleSlide(pptx: PptxGenJS, slide: SlideSpec, logoBase64?: string
     w: 9,
     h: 0.8,
     fontSize: 18,
-    color: AGI_BLUE,
+    color: HD_GOLD,
     align: 'center',
   });
   if (slide.speaker_notes) {
@@ -108,7 +107,7 @@ function renderTitleSlide(pptx: PptxGenJS, slide: SlideSpec, logoBase64?: string
 }
 
 function renderSectionHeader(pptx: PptxGenJS, slide: SlideSpec) {
-  const s = pptx.addSlide({ masterName: 'AGI_FOOD_MASTER' });
+  const s = pptx.addSlide({ masterName: 'HD_MASTER' });
   s.addText(slide.title, {
     x: 0.5,
     y: 2.0,
@@ -116,7 +115,7 @@ function renderSectionHeader(pptx: PptxGenJS, slide: SlideSpec) {
     h: 1.2,
     fontSize: 30,
     bold: true,
-    color: AGI_NAVY,
+    color: HD_NAVY,
     align: 'center',
   });
   if (slide.subtitle) {
@@ -134,7 +133,7 @@ function renderSectionHeader(pptx: PptxGenJS, slide: SlideSpec) {
 }
 
 function renderBullets(pptx: PptxGenJS, slide: SlideSpec) {
-  const s = pptx.addSlide({ masterName: 'AGI_FOOD_MASTER' });
+  const s = pptx.addSlide({ masterName: 'HD_MASTER' });
   s.addText(slide.title, {
     x: 0.5,
     y: 0.3,
@@ -142,7 +141,7 @@ function renderBullets(pptx: PptxGenJS, slide: SlideSpec) {
     h: 0.7,
     fontSize: 22,
     bold: true,
-    color: AGI_NAVY,
+    color: HD_NAVY,
   });
   const bullets = slide.content.bullets || [];
   s.addText(
@@ -161,7 +160,7 @@ function renderBullets(pptx: PptxGenJS, slide: SlideSpec) {
 }
 
 function renderTwoColumn(pptx: PptxGenJS, slide: SlideSpec) {
-  const s = pptx.addSlide({ masterName: 'AGI_FOOD_MASTER' });
+  const s = pptx.addSlide({ masterName: 'HD_MASTER' });
   s.addText(slide.title, {
     x: 0.5,
     y: 0.3,
@@ -169,7 +168,7 @@ function renderTwoColumn(pptx: PptxGenJS, slide: SlideSpec) {
     h: 0.7,
     fontSize: 22,
     bold: true,
-    color: AGI_NAVY,
+    color: HD_NAVY,
   });
 
   const left = slide.content.left_column;
@@ -211,7 +210,7 @@ function renderTwoColumn(pptx: PptxGenJS, slide: SlideSpec) {
 }
 
 function renderDataTable(pptx: PptxGenJS, slide: SlideSpec) {
-  const s = pptx.addSlide({ masterName: 'AGI_FOOD_MASTER' });
+  const s = pptx.addSlide({ masterName: 'HD_MASTER' });
   s.addText(slide.title, {
     x: 0.5,
     y: 0.3,
@@ -219,14 +218,14 @@ function renderDataTable(pptx: PptxGenJS, slide: SlideSpec) {
     h: 0.7,
     fontSize: 22,
     bold: true,
-    color: AGI_NAVY,
+    color: HD_NAVY,
   });
 
   const table = slide.content.table;
   if (table) {
     const headerRow = table.headers.map((h) => ({
       text: h,
-      options: { bold: true, fill: { color: AGI_DARK_BLUE }, color: WHITE, fontSize: 12 },
+      options: { bold: true, fill: { color: HD_DARK }, color: WHITE, fontSize: 12 },
     }));
     const dataRows = table.rows.map((row) =>
       row.map((cell) => ({
@@ -247,7 +246,7 @@ function renderDataTable(pptx: PptxGenJS, slide: SlideSpec) {
 }
 
 function renderKPICards(pptx: PptxGenJS, slide: SlideSpec) {
-  const s = pptx.addSlide({ masterName: 'AGI_FOOD_MASTER' });
+  const s = pptx.addSlide({ masterName: 'HD_MASTER' });
   s.addText(slide.title, {
     x: 0.5,
     y: 0.3,
@@ -255,7 +254,7 @@ function renderKPICards(pptx: PptxGenJS, slide: SlideSpec) {
     h: 0.7,
     fontSize: 22,
     bold: true,
-    color: AGI_NAVY,
+    color: HD_NAVY,
   });
 
   const kpis = slide.content.kpis || [];
@@ -275,7 +274,7 @@ function renderKPICards(pptx: PptxGenJS, slide: SlideSpec) {
       y,
       w: cardWidth,
       h: 1.8,
-      fill: { color: AGI_LIGHT },
+      fill: { color: HD_LIGHT },
       rectRadius: 0.05,
     });
     s.addText(kpi.label, {
@@ -294,7 +293,7 @@ function renderKPICards(pptx: PptxGenJS, slide: SlideSpec) {
       h: 0.6,
       fontSize: 24,
       bold: true,
-      color: AGI_NAVY,
+      color: HD_NAVY,
       align: 'center',
     });
     s.addText(kpi.trend, {
@@ -312,7 +311,7 @@ function renderKPICards(pptx: PptxGenJS, slide: SlideSpec) {
 }
 
 function renderChart(pptx: PptxGenJS, slide: SlideSpec) {
-  const s = pptx.addSlide({ masterName: 'AGI_FOOD_MASTER' });
+  const s = pptx.addSlide({ masterName: 'HD_MASTER' });
   s.addText(slide.title, {
     x: 0.5,
     y: 0.3,
@@ -320,12 +319,12 @@ function renderChart(pptx: PptxGenJS, slide: SlideSpec) {
     h: 0.7,
     fontSize: 22,
     bold: true,
-    color: AGI_NAVY,
+    color: HD_NAVY,
   });
 
   const chartData = slide.content.chart_data;
   if (chartData) {
-    const chartColors = ['C4287A', '2A9D8F', 'C8963E', 'E85D3A', '5C2D91'];
+    const chartColors = ['D4930D', '0C4A8C', '3474B8', '4F8BCB', '001F3F'];
     const data = chartData.series.map((s, i) => ({
       name: s.name,
       labels: chartData.labels,
@@ -351,7 +350,7 @@ function renderChart(pptx: PptxGenJS, slide: SlideSpec) {
 export async function renderDeck(spec: DeckSpec): Promise<void> {
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
-  pptx.author = 'AGI Food';
+  pptx.author = 'Héroux-Devtek';
   pptx.subject = spec.title;
 
   let logoBase64: string | undefined;
@@ -393,7 +392,7 @@ export async function renderDeck(spec: DeckSpec): Promise<void> {
 
   await uploadReport(blob, filename, {
     name: spec.title,
-    template: spec.metadata?.generated_by || 'agi_food_deck',
+    template: spec.metadata?.generated_by || 'hd_deck',
     format: 'pptx',
     pages: spec.slides.length,
   });

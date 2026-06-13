@@ -35,7 +35,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         body: JSON.stringify({ username, password }),
       });
       if (res.ok) {
-        sessionStorage.setItem('rashid_auth', 'true');
+        sessionStorage.setItem('hd_auth', 'true');
         onLogin();
       } else {
         setError('Invalid credentials');
@@ -51,11 +51,11 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     <div className={styles.root}>
       <Card className={styles.card}>
         <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-          <img src="/agi-logo.png" alt="AGI" style={{ height: '48px', objectFit: 'contain' }} />
+          <img src="/hd-logo.png" alt="Héroux-Devtek" style={{ maxWidth: '80%', height: '48px', objectFit: 'contain' }} />
         </div>
         <CardHeader
-          header={<Text size={600} weight="bold" className={styles.title}>RASHID رشيد</Text>}
-          description="Demand Sensing & Replenishment Platform"
+          header={<Text size={600} weight="bold" className={styles.title}>HD Supply Chain</Text>}
+          description="Aerospace Manufacturing Intelligence Platform"
         />
         <form className={styles.form} onSubmit={handleSubmit}>
           <Input placeholder="Username" value={username} onChange={(_, d) => setUsername(d.value)} />

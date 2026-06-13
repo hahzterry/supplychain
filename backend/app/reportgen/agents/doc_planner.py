@@ -6,7 +6,7 @@ import logging
 from datetime import date
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..schemas import DocSection, DocSpec
 
@@ -69,7 +69,7 @@ TEMPLATE_SECTIONS: dict[str, list[str]] = {
 }
 
 SYSTEM_PROMPT = """\
-You are a supply chain document planner for AGI Food Division (UAE-based FMCG).
+You are a supply chain document planner for Héroux-Devtek Inc. (Canadian aerospace).
 Your role is to create a structured outline for a supply chain report.
 
 Given the template type, audience, focus area, and summary data, produce a JSON object
@@ -78,12 +78,12 @@ matching the DocSpec schema:
     "title": "...",
     "subtitle": "...",
     "date": "YYYY-MM-DD",
-    "author": "Rashid AI",
+    "author": "Atlas AI",
     "executive_summary": "Brief 2-3 sentence overview",
     "sections": [
         {"title": "Section Title", "paragraphs": [], "bullets": [], "table": null}
     ],
-    "footer_text": "AGI Food — Internal Confidential"
+    "footer_text": "Héroux-Devtek — Internal Confidential"
 }
 
 Rules:
@@ -111,10 +111,9 @@ class DocPlanner:
         api_key: str,
     ) -> None:
         self.model = model
-        self.client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self.client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
             api_key=api_key,
-            api_version="2024-12-01-preview",
             timeout=60.0,
         )
 
@@ -154,11 +153,17 @@ class DocPlanner:
                     {"role": "user", "content": user_message},
                 ],
                 temperature=0.3,
-                max_completion_tokens=2000,
+                max_completion_tokens=8000,
                 response_format={"type": "json_object"},
             )
 
-            content = response.choices[0].message.content or "{}"
+            content = response.choices[0].message.content or ""
+            finish_reason = response.choices[0].finish_reason
+
+            if not content.strip() or finish_reason == "length":
+                logger.warning(f"[DocPlanner] Empty/truncated response (finish_reason={finish_reason}). Using fallback.")
+                return self._fallback_plan(template, section_titles, audience, focus_area)
+
             spec_data = json.loads(content)
 
             # Ensure sections match template
@@ -170,6 +175,9 @@ class DocPlanner:
 
             return DocSpec(**spec_data)
 
+        except json.JSONDecodeError as e:
+            logger.error(f"[DocPlanner] JSON parse failed: {e}. Using fallback plan.")
+            return self._fallback_plan(template, section_titles, audience, focus_area)
         except Exception as e:
             logger.error(f"[DocPlanner] LLM call failed: {e}. Using fallback plan.")
             return self._fallback_plan(template, section_titles, audience, focus_area)
@@ -242,13 +250,13 @@ class DocPlanner:
             title=title_map.get(template, "Supply Chain Report"),
             subtitle=f"Prepared for {audience}" + (f" | Focus: {focus_area}" if focus_area else ""),
             date=date.today().isoformat(),
-            author="Rashid AI",
+            author="Atlas AI",
             executive_summary="This report provides a comprehensive overview of the current supply chain status.",
             sections=[
                 DocSection(title=t, paragraphs=[], bullets=[], table=None)
                 for t in section_titles
             ],
-            footer_text="AGI Food — Internal Confidential",
+            footer_text="Héroux-Devtek — Internal Confidential",
         )
 
 

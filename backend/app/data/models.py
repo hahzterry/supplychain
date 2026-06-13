@@ -1,4 +1,4 @@
-"""Pydantic models for RASHID supply chain domain."""
+"""Pydantic models for Héroux-Devtek supply chain domain."""
 from __future__ import annotations
 
 from enum import Enum
@@ -6,37 +6,40 @@ from pydantic import BaseModel
 
 
 class Category(str, Enum):
-    FLOUR = "Flour"
-    PASTA = "Pasta"
-    COOKING_OIL = "Cooking Oil"
-    ANIMAL_FEED = "Animal Feed"
-    RICE = "Rice"
-    SUGAR = "Sugar"
-    SPECIALTY = "Specialty"
+    LANDING_GEAR = "Landing Gear"
+    ACTUATION = "Actuation Systems"
+    HYDRAULICS = "Hydraulics"
+    STRUCTURES = "Structures"
+    MRO_PARTS = "MRO Parts"
+    RAW_MATERIALS = "Raw Materials"
+    FASTENERS_SEALS = "Fasteners & Seals"
 
 
 class Channel(str, Enum):
-    MODERN_TRADE = "Modern Trade"
-    TRADITIONAL_TRADE = "Traditional Trade"
-    HORECA = "HoReCa"
-    EXPORT = "Export"
-    INDUSTRIAL = "Industrial"
-    ONLINE = "Online"
+    OEM_COMMERCIAL = "OEM Commercial"
+    OEM_MILITARY = "OEM Military"
+    AFTERMARKET_MRO = "Aftermarket MRO"
+    SPARES = "Spares"
+    INTERNAL_TRANSFER = "Internal Transfer"
 
 
 class Region(str, Enum):
-    DUBAI = "Dubai"
-    ABU_DHABI = "Abu Dhabi"
-    SHARJAH_NE = "Sharjah/Northern Emirates"
-    AL_AIN = "Al Ain"
-    KSA_EXPORT = "KSA Export"
-    OMAN_EXPORT = "Oman Export"
+    NORTH_AMERICA = "North America"
+    EUROPE = "Europe"
+    ASIA_PACIFIC = "Asia Pacific"
+    MIDDLE_EAST = "Middle East"
+    SOUTH_AMERICA = "South America"
 
 
 class Plant(str, Enum):
-    GRAND_MILLS_DUBAI = "Grand Mills Dubai"
-    GRAND_MILLS_ABUDHABI = "Grand Mills Abu Dhabi"
-    AGHURAIR_JEBELALI = "Al Ghurair Foods Jebel Ali"
+    LONGUEUIL_QC = "Longueuil, Quebec"
+    KITCHENER_ON = "Kitchener, Ontario"
+    SPRINGFIELD_OH = "Springfield, Ohio"
+    NOTTINGHAM_UK = "Nottingham, UK"
+    LAVAL_QC = "Laval, Quebec"
+    LIVONIA_MI = "Livonia, Michigan"
+    GETAFE_MADRID = "Getafe/Madrid, Spain (CESA)"
+    SEVILLE_SPAIN = "Seville, Spain"
 
 
 class RiskLevel(str, Enum):
@@ -49,12 +52,16 @@ class RiskLevel(str, Enum):
 class SKU(BaseModel):
     id: str
     name: str
-    name_ar: str
+    name_fr: str
+    name_es: str
     category: Category
-    brand: str
+    part_number: str
+    drawing_rev: str
+    material_spec: str
+    program: str
     uom: str
     unit_cost: float
-    shelf_life_days: int
+    inspection_interval_days: int
     abc_class: str
     xyz_class: str
     min_order_qty: float
@@ -78,7 +85,7 @@ class InventoryPosition(BaseModel):
     last_receipt_date: str
     next_expected_receipt: str | None = None
     batch_age_days: int
-    shelf_life_remaining_pct: float
+    cert_expiry_remaining_pct: float
 
 
 class DemandRecord(BaseModel):
@@ -88,7 +95,7 @@ class DemandRecord(BaseModel):
     region: Region
     actual_qty: float
     forecast_qty: float
-    promotion_flag: bool
+    program_change_flag: bool
     event_flag: str
 
 
@@ -110,7 +117,8 @@ class DemandForecast(BaseModel):
 class Supplier(BaseModel):
     id: str
     name: str
-    name_ar: str
+    name_fr: str
+    name_es: str
     country: str
     material_types: list[str]
     avg_lead_time_days: int
@@ -118,10 +126,11 @@ class Supplier(BaseModel):
     max_lead_time_days: int
     reliability_score: float
     current_orders: int
-    total_capacity_mt: float
+    total_capacity_units: float
     quality_score: float
     last_delivery_date: str
     payment_terms: str
+    certifications: list[str] = []
 
 
 class ProductionLine(BaseModel):
@@ -129,7 +138,7 @@ class ProductionLine(BaseModel):
     plant: Plant
     line_name: str
     product_categories: list[Category]
-    capacity_mt_per_day: float
+    capacity_units_per_day: float
     current_utilization_pct: float
     planned_maintenance: list[str]
     current_sku: str | None = None
@@ -143,10 +152,58 @@ class PurchaseOrder(BaseModel):
     sku_id: str
     sku_name: str
     qty: float
+    unit_price: float = 0.0
+    currency: str = "CAD"
+    contract_id: str | None = None
     order_date: str
     expected_delivery: str
     status: str
     delay_days: int = 0
+    validation_status: str = "pending"
+    validation_flags: list[str] = []
+
+
+class Contract(BaseModel):
+    id: str
+    supplier_id: str
+    supplier_name: str
+    part_numbers: list[str]
+    negotiated_prices: dict[str, float]
+    escalation_pct_annual: float
+    effective_date: str
+    expiry_date: str
+    currency: str = "CAD"
+    status: str
+
+
+class ContractPriceValidation(BaseModel):
+    po_id: str
+    contract_id: str | None
+    part_number: str
+    contract_ceiling: float | None
+    po_unit_price: float
+    variance_pct: float
+    status: str
+
+
+class POValidationResult(BaseModel):
+    po_id: str
+    status: str
+    checks: list[dict]
+
+
+class DailyLaborRecord(BaseModel):
+    id: str
+    facility: str
+    date: str
+    shift: str
+    headcount: int
+    direct_hours: float
+    indirect_hours: float
+    overtime_hours: float
+    efficiency_pct: float
+    skill_category: str
+    production_line_id: str | None = None
 
 
 class ReplenishmentAction(BaseModel):
@@ -187,6 +244,8 @@ class KPIMetrics(BaseModel):
     working_capital_mm: float
     production_utilization: float
     on_time_delivery: float
+    labor_utilization_pct: float
+    contract_compliance_pct: float
     alerts_open: int
     pending_actions: int
 
@@ -244,16 +303,16 @@ class MaintenanceEvent(BaseModel):
     duration_hours: float
     type: str
     root_cause: str
-    cost_aed: float
+    cost_cad: float
 
 
 class QualityTestResult(BaseModel):
     sku_id: str
     batch_id: str
     test_date: str
-    moisture_pct: float | None = None
-    protein_pct: float | None = None
-    contaminant_level: str
+    dimensional_check: str | None = None
+    ndt_result: str | None = None
+    material_cert_status: str
     overall_result: str
     inspector: str
 
@@ -265,5 +324,5 @@ class ProductionRun(BaseModel):
     planned_qty: float
     actual_qty: float
     yield_pct: float
-    waste_pct: float
+    scrap_pct: float
     shift: str

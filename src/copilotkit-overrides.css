@@ -1,14 +1,14 @@
-.rashid-chat {
-  --copilot-kit-primary-color: #2e7d32;
+.atlas-chat {
+  --copilot-kit-primary-color: #001F3F;
   --copilot-kit-background-color: #ffffff;
-  --copilot-kit-secondary-color: #1b5e20;
+  --copilot-kit-secondary-color: #D4930D;
   --copilot-kit-secondary-contrast-color: #1a1a1a;
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   height: 100%;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitUserMessage {
-  background-color: #e8f5e9 !important;
+.atlas-chat .copilotKitMessage.copilotKitUserMessage {
+  background-color: #E8F0F8 !important;
   color: #1a1a1a !important;
   border-radius: 18px;
   padding: 10px 16px;
@@ -16,7 +16,7 @@
   max-width: 80%;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage {
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage {
   background: rgb(249, 249, 249) !important;
   border-radius: 8px;
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.14), 0px 0px 2px rgba(0, 0, 0, 0.12);
@@ -25,68 +25,68 @@
   min-width: 300px;
 }
 
-.rashid-chat .copilotKitParagraph {
+.atlas-chat .copilotKitParagraph {
   font-size: 16px !important;
   line-height: 22px !important;
   margin-bottom: 10px;
 }
 
-.rashid-chat h1.copilotKitMarkdownElement {
+.atlas-chat h1.copilotKitMarkdownElement {
   font-size: 20px !important;
   font-weight: 600;
   margin-bottom: 8px;
 }
 
-.rashid-chat h2.copilotKitMarkdownElement {
+.atlas-chat h2.copilotKitMarkdownElement {
   font-size: 18px !important;
   font-weight: 600;
   margin-bottom: 6px;
 }
 
-.rashid-chat h3.copilotKitMarkdownElement {
+.atlas-chat h3.copilotKitMarkdownElement {
   font-size: 16px !important;
   font-weight: 600;
   margin-bottom: 4px;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage strong {
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage strong {
   font-weight: 600;
   color: #1a1a1a;
 }
 
-.rashid-chat ul.copilotKitMarkdownElement,
-.rashid-chat ol.copilotKitMarkdownElement {
+.atlas-chat ul.copilotKitMarkdownElement,
+.atlas-chat ol.copilotKitMarkdownElement {
   padding-left: 20px;
   margin: 8px 0;
 }
 
-.rashid-chat li.copilotKitMarkdownElement {
+.atlas-chat li.copilotKitMarkdownElement {
   font-size: 16px;
   line-height: 22px;
   margin-bottom: 4px;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage table {
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage table {
   border-collapse: collapse;
   margin: 12px 0;
   font-size: 14px;
   width: 100%;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage td,
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage th {
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage td,
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage th {
   border: 1px solid #ccc;
   padding: 8px 10px;
   text-align: left;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage th {
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage th {
   font-weight: 600;
   background: #f7f8fa;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage [class*="toolCall"],
-.rashid-chat [data-copilotkit-tool-call] {
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage [class*="toolCall"],
+.atlas-chat [data-copilotkit-tool-call] {
   border-left: none;
   padding-left: 0;
   margin: 4px 0;
@@ -94,12 +94,12 @@
   font-size: 14px;
 }
 
-.rashid-chat .copilotKitMessages footer .suggestions .suggestion {
+.atlas-chat .copilotKitMessages footer .suggestions .suggestion {
   font-weight: 600 !important;
   line-height: 24px;
   border-radius: 4px !important;
   padding: 2px 10px !important;
-  background: #e8f5e9 !important;
+  background: #E8F0F8 !important;
   color: black !important;
   font-style: italic;
   font-size: 13px !important;
@@ -107,25 +107,25 @@
   box-shadow: none !important;
 }
 
-.rashid-chat .copilotKitMessages footer .suggestions .suggestion:hover {
-  background: #c8e6c9 !important;
+.atlas-chat .copilotKitMessages footer .suggestions .suggestion:hover {
+  background: #CCE0F0 !important;
   text-decoration: underline;
 }
 
-.rashid-suggestions {
+.atlas-suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: 10px 0 6px;
 }
 
-.rashid-suggestion-chip {
+.atlas-suggestion-chip {
   font-weight: 600;
   line-height: 24px;
   text-align: center;
   border-radius: 4px;
   padding: 2px 10px;
-  background: #e8f5e9;
+  background: #E8F0F8;
   color: black;
   font-style: italic;
   font-size: 13px;
@@ -135,40 +135,40 @@
   transition: background 0.15s ease;
 }
 
-.rashid-suggestion-chip:hover {
-  background: #c8e6c9;
+.atlas-suggestion-chip:hover {
+  background: #CCE0F0;
   text-decoration: underline;
 }
 
-.rashid-chat .copilotKitInput button[type="submit"],
-.rashid-chat button[type="submit"] {
-  background-color: #2e7d32 !important;
+.atlas-chat .copilotKitInput button[type="submit"],
+.atlas-chat button[type="submit"] {
+  background-color: #001F3F !important;
   color: #fff !important;
   border-radius: 50%;
 }
 
-.rashid-chat .copilotKitInput button[type="submit"]:hover,
-.rashid-chat button[type="submit"]:hover {
-  background-color: #1b5e20 !important;
+.atlas-chat .copilotKitInput button[type="submit"]:hover,
+.atlas-chat button[type="submit"]:hover {
+  background-color: #001529 !important;
 }
 
-.rashid-chat .copilotKitInput textarea,
-.rashid-chat textarea {
+.atlas-chat .copilotKitInput textarea,
+.atlas-chat textarea {
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
 }
 
-[dir="rtl"] .rashid-chat .copilotKitMessage.copilotKitUserMessage {
+[dir="rtl"] .atlas-chat .copilotKitMessage.copilotKitUserMessage {
   margin-left: 0;
   margin-right: auto;
 }
 
-.rashid-chat .copilotKitCodeBlock {
+.atlas-chat .copilotKitCodeBlock {
   border-radius: 6px;
   margin: 8px 0;
 }
 
-.rashid-chat .copilotKitMessage.copilotKitAssistantMessage hr {
+.atlas-chat .copilotKitMessage.copilotKitAssistantMessage hr {
   border: none;
   border-top: 1px solid #e8e8e8;
   margin: 12px 0;

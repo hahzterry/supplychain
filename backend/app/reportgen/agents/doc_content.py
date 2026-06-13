@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..schemas import DocSection, DocSpec, TableContent
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
 You are a senior supply chain analyst writing a professional document section
-for AGI Food Division (UAE-based FMCG company).
+for Héroux-Devtek Inc. (Canadian aerospace landing gear manufacturer).
 
 Given a section title, the full data context, and the report audience, produce
 rich professional content for that section.
@@ -51,10 +51,9 @@ class DocContentWriter:
         api_key: str,
     ) -> None:
         self.model = model
-        self.client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self.client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
             api_key=api_key,
-            api_version="2024-12-01-preview",
             timeout=60.0,
         )
 
@@ -118,34 +117,126 @@ class DocContentWriter:
             f"Write the content for this section."
         )
 
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=0.4,
-            max_completion_tokens=2000,
-            response_format={"type": "json_object"},
-        )
-
-        content = response.choices[0].message.content or "{}"
-        data = json.loads(content)
-
-        # Parse table if present
-        table = None
-        if data.get("table") and isinstance(data["table"], dict):
-            table = TableContent(
-                headers=data["table"].get("headers", []),
-                rows=data["table"].get("rows", []),
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_message},
+                ],
+                temperature=0.4,
+                max_completion_tokens=8000,
+                response_format={"type": "json_object"},
             )
 
-        return DocSection(
-            title=section_title,
-            paragraphs=data.get("paragraphs", []),
-            bullets=data.get("bullets", []),
-            table=table,
-        )
+            content = response.choices[0].message.content or ""
+
+            if not content.strip() or content.strip() == "{}":
+                logger.warning(f"[DocContentWriter] Empty response for '{section_title}'. Using fallback.")
+                return self._fallback_section(section_title, data_text)
+
+            data = json.loads(content)
+
+            # Parse table if present
+            table = None
+            if data.get("table") and isinstance(data["table"], dict):
+                table = TableContent(
+                    headers=data["table"].get("headers", []),
+                    rows=data["table"].get("rows", []),
+                )
+
+            result = DocSection(
+                title=section_title,
+                paragraphs=data.get("paragraphs", []),
+                bullets=data.get("bullets", []),
+                table=table,
+            )
+
+            if not result.paragraphs and not result.bullets:
+                logger.warning(f"[DocContentWriter] No content returned for '{section_title}'. Using fallback.")
+                return self._fallback_section(section_title, data_text)
+
+            return result
+
+        except (json.JSONDecodeError, Exception) as e:
+            logger.warning(f"[DocContentWriter] Failed for '{section_title}': {e}. Using fallback.")
+            return self._fallback_section(section_title, data_text)
+
+    def _fallback_section(self, section_title: str, data_text: str) -> DocSection:
+        """Deterministic fallback when LLM fails to generate content."""
+        title_lower = section_title.lower()
+        paragraphs: list[str] = []
+        bullets: list[str] = []
+        table = None
+
+        # Extract key values from data text
+        lines = data_text.split("\n")
+        kpi_lines = [l.strip() for l in lines if ":" in l and any(k in l for k in ["Fill Rate", "Stockout", "DOS", "MAPE", "Delivery", "Utilization", "Capital", "Alerts"])]
+
+        if "executive" in title_lower or "overview" in title_lower:
+            paragraphs.append(
+                "This section provides a high-level assessment of current supply chain performance. "
+                "Key metrics are summarized below with status indicators against target thresholds."
+            )
+            for kl in kpi_lines[:6]:
+                bullets.append(kl.strip())
+
+        elif "kpi" in title_lower or "performance" in title_lower or "highlight" in title_lower:
+            paragraphs.append(
+                "The following key performance indicators reflect the current operational state "
+                "of the Héroux-Devtek supply chain network."
+            )
+            if kpi_lines:
+                table = TableContent(
+                    headers=["Metric", "Value"],
+                    rows=[[kl.split(":")[0].strip(), kl.split(":", 1)[1].strip()] for kl in kpi_lines if ":" in kl],
+                )
+
+        elif "risk" in title_lower or "alert" in title_lower:
+            alert_lines = [l.strip() for l in lines if "CRITICAL" in l.upper() or "WARNING" in l.upper()]
+            paragraphs.append(
+                "The risk outlook identifies supply chain vulnerabilities requiring immediate attention. "
+                "Critical alerts demand escalated response within 24-48 hours."
+            )
+            for al in alert_lines[:5]:
+                bullets.append(al.lstrip("[] "))
+
+        elif "decision" in title_lower:
+            paragraphs.append(
+                "The following decisions require S&OP Committee review and approval to maintain "
+                "service level targets and mitigate identified supply risks."
+            )
+            bullets.extend([
+                "Review titanium allocation response strategy",
+                "Approve alternate sourcing for constrained materials",
+                "Validate inventory reduction targets against service levels",
+            ])
+
+        elif "action" in title_lower or "next step" in title_lower:
+            paragraphs.append(
+                "The following action items have been identified for immediate and near-term execution."
+            )
+            bullets.extend([
+                "Expedite critical replenishment orders for at-risk SKUs",
+                "Complete supplier performance review for low-reliability vendors",
+                "Schedule capacity rebalancing assessment across facilities",
+                "Update safety stock parameters based on revised demand signals",
+            ])
+
+        else:
+            paragraphs.append(
+                f"This section covers {section_title.lower()} for the current reporting period. "
+                "Detailed analysis is based on the latest available supply chain data."
+            )
+            for kl in kpi_lines[:4]:
+                bullets.append(kl.strip())
+
+        if not paragraphs:
+            paragraphs.append(f"Analysis for {section_title} based on current supply chain data.")
+        if not bullets:
+            bullets.append("Refer to detailed data tables for comprehensive breakdown.")
+
+        return DocSection(title=section_title, paragraphs=paragraphs, bullets=bullets, table=table)
 
     def _format_data_context(self, data_context: dict[str, Any]) -> str:
         """
@@ -166,7 +257,7 @@ class DocContentWriter:
             lines.append(f"On-Time Delivery: {k.get('on_time_delivery', 'N/A')}%")
             lines.append(f"Production Utilization: {k.get('production_utilization', 'N/A')}%")
             lines.append(f"Obsolescence Rate: {k.get('obsolescence_rate', 'N/A')}%")
-            lines.append(f"Working Capital: {k.get('working_capital_mm', 'N/A')} MM AED")
+            lines.append(f"Working Capital: {k.get('working_capital_mm', 'N/A')} MM CAD")
             lines.append(f"Open Alerts: {k.get('alerts_open', 'N/A')}")
             lines.append(f"Pending Actions: {k.get('pending_actions', 'N/A')}")
             lines.append("")

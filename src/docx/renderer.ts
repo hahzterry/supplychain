@@ -20,10 +20,10 @@ import { uploadReport } from '../reports';
 import { getLogoArrayBuffer, LOGO_ASPECT_RATIO } from '../reports/logo';
 import type { DocSpec, DocSection } from '../reports/types';
 
-const AGI_NAVY = '1A0A2E';
-const AGI_BLUE = 'C4287A';
-const TABLE_HEADER_BG = '2E1452';
-const TABLE_ALT_ROW = 'FBF4FC';
+const HD_NAVY = '001F3F';
+const HD_GOLD = 'D4930D';
+const TABLE_HEADER_BG = '001529';
+const TABLE_ALT_ROW = 'F2F8FE';
 const MEDIUM_GRAY = '666666';
 
 function buildCoverPage(spec: DocSpec, logoBuffer?: ArrayBuffer): Paragraph[] {
@@ -55,7 +55,7 @@ function buildCoverPage(spec: DocSpec, logoBuffer?: ArrayBuffer): Paragraph[] {
           text: spec.title,
           bold: true,
           size: 56,
-          color: AGI_NAVY,
+          color: HD_NAVY,
           font: 'Calibri Light',
         }),
       ],
@@ -113,7 +113,7 @@ function buildExecutiveSummary(text: string): Paragraph[] {
         new TextRun({
           text: 'Executive Summary',
           bold: true,
-          color: AGI_NAVY,
+          color: HD_NAVY,
           font: 'Calibri',
         }),
       ],
@@ -193,7 +193,7 @@ function buildSection(section: DocSection): (Paragraph | Table)[] {
         new TextRun({
           text: section.title,
           bold: true,
-          color: AGI_BLUE,
+          color: HD_GOLD,
           font: 'Calibri',
         }),
       ],
@@ -284,7 +284,7 @@ export async function renderDoc(spec: DocSpec): Promise<void> {
   const estimatedPages = Math.max(1, Math.ceil(children.length / 12));
   await uploadReport(blob, filename, {
     name: spec.title,
-    template: 'agi_food_doc',
+    template: 'hd_doc',
     format: 'docx',
     pages: estimatedPages,
   });

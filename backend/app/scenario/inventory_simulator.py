@@ -59,7 +59,7 @@ class InventorySimulator:
 
             lost_weeks = (HORIZON_WEEKS - stockout_week + 1) if stockout_week else 0
             lost_units = lost_weeks * weekly_demand
-            lost_aed = lost_units * unit_cost
+            lost_cad = lost_units * unit_cost
 
             projected_dos = max(0, (current_stock + in_transit * 0.5) / (weekly_demand / 7)) if weekly_demand > 0 else current_dos
 
@@ -71,7 +71,7 @@ class InventorySimulator:
                 stockout_week=stockout_week,
                 safety_stock_breached=safety_breached,
                 projected_lost_sales_units=round(lost_units, 0),
-                projected_lost_sales_aed=round(lost_aed, 0),
+                projected_lost_sales_cad=round(lost_cad, 0),
             ))
 
         for week in range(1, HORIZON_WEEKS + 1):
@@ -86,7 +86,7 @@ class InventorySimulator:
                 "skus_stockout": t["stockout"],
             })
 
-        total_lost_aed = sum(p.projected_lost_sales_aed for p in projections)
+        total_lost_cad = sum(p.projected_lost_sales_cad for p in projections)
         stockout_count = sum(1 for p in projections if p.stockout_week is not None)
         avg_dos_reduction = (
             sum(p.current_dos - p.projected_dos for p in projections) / max(1, len(projections))
@@ -96,7 +96,7 @@ class InventorySimulator:
             sku_projections=projections,
             timeline=timeline_data,
             aggregate={
-                "total_lost_sales_aed": round(total_lost_aed, 0),
+                "total_lost_sales_cad": round(total_lost_cad, 0),
                 "skus_stockout_count": stockout_count,
                 "skus_safety_breached": sum(1 for p in projections if p.safety_stock_breached),
                 "avg_dos_reduction": round(avg_dos_reduction, 1),

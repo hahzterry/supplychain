@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..scenario.supervisor import ScenarioSupervisor
 from .category_normalizer import normalize_categories
@@ -13,7 +13,7 @@ from .category_normalizer import normalize_categories
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a supply chain impact analysis agent for AGI Food Division.
+You are a supply chain impact analysis agent for Héroux-Devtek Inc..
 Given scenario parameters and quantitative data from deterministic models,
 provide enhanced qualitative analysis and narrative interpretation.
 
@@ -30,9 +30,9 @@ Return JSON:
 
 class ImpactAnalyzer:
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint, api_key=api_key,
-            api_version="2024-12-01-preview", timeout=60.0,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
+            api_key=api_key, timeout=60.0,
         )
         self._model = model
 

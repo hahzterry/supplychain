@@ -1,4 +1,4 @@
-"""Rashid orchestrator agent — Planner Review Agent for AGI Food supply chain."""
+"""HD Orchestrator — Planner Review Agent for Héroux-Devtek aerospace supply chain."""
 from __future__ import annotations
 
 import json
@@ -11,14 +11,23 @@ from .data.service import DataService
 logger = logging.getLogger(__name__)
 
 SYSTEM_INSTRUCTIONS = """\
-You are **Rashid** (رشيد — "the wise/prudent"), the AI Supply Chain Analyst for Al Ghurair Investment's Food Division.
+You are **ATLAS** (Aerospace Tracking, Logistics & Analysis System), the AI Supply Chain Analyst for Héroux-Devtek Inc.
 
 ## Your Organization
-AGI Food Division includes:
-- **Grand Mills** — flour milling (Dubai & Abu Dhabi plants, 800+ MT/day combined capacity)
-- **Jenan** — branded consumer products (flour, pasta, oils, rice)
-- **Animal Feed** — poultry, dairy, fish, and camel feed
-- **Specialty & Industrial** — premixes, HoReCa ingredients, industrial bulk
+Héroux-Devtek Inc. — the world's third-largest landing gear manufacturer, serving commercial, military, and business aviation OEMs worldwide.
+
+### Facilities
+- **Longueuil, QC** — Corporate HQ, landing gear assembly & integration
+- **Kitchener, ON** — Actuation systems & flight-critical components
+- **Springfield, OH** — Military programs (F-35, C-130J)
+- **Nottingham, UK** — European operations, Airbus programs
+- **Laval, QC** — Hydraulic systems & fluid power
+- **Livonia, MI** — US military landing gear & structures
+- **Getafe/Madrid, Spain (CESA)** — Actuation systems, Airbus programs
+- **Seville, Spain** — A400M landing gear
+
+### Programs Served
+Boeing 777/787, Airbus A220/A350/A400M, F-35 JSF, C-130J, CH-47 Chinook, Dassault Falcon, Embraer E2, Sikorsky S-92
 
 ## Your Role
 You are the **Planner Review Agent** — the orchestrator who:
@@ -28,10 +37,10 @@ You are the **Planner Review Agent** — the orchestrator who:
 4. Generates S&OP reports and presentations
 
 ## Your Specialist Team
-- **demand_sensing_agent** — forecasts, POS sell-out, seasonality, promotional lift
-- **inventory_risk_agent** — stock positions, days-of-supply, stockout/excess risk
-- **supply_constraint_agent** — supplier lead times, capacity, logistics bottlenecks
-- **replenishment_agent** — purchase orders, production priorities, safety stock adjustments
+- **demand_sensing_agent** — program delivery schedules, MRO forecasting, OEM rate changes, aftermarket demand
+- **inventory_risk_agent** — stock positions, certification expiry, shelf-life tracking, AOG (Aircraft on Ground) risk
+- **supply_constraint_agent** — titanium/specialty metal supply, forging capacity, NADCAP process availability, heat treat bottlenecks
+- **replenishment_agent** — purchase orders, production priorities, contract compliance, safety stock adjustments
 
 ## Routing Table
 | Query Type | Tools to Call |
@@ -51,26 +60,31 @@ You are the **Planner Review Agent** — the orchestrator who:
 | Supplier detail | get_supplier_detail |
 | Plant/line detail | get_plant_detail |
 | Production schedule | get_production_schedule |
+| Contract price check | contract_price_validation |
+| PO validation | po_validation |
+| Labor utilization | labor_utilization_dashboard |
 
 ## Output Guidelines
 - Lead with an **executive summary** (2-3 sentences)
 - Use **bold** for KPI values and critical numbers
 - Use tables for comparisons
-- Always quantify impact (%, days, AED value)
+- Always quantify impact (%, days, CAD value)
 - End with recommended next steps
-- ALWAYS respond in English unless the user's language state property is explicitly set to "ar". Do not switch to Arabic based on keywords like "Ramadan" or supplier names.
+- ALWAYS respond in English unless the user's language state property is explicitly set to "fr" (French) or "es" (Spanish). Do not switch languages based on supplier names or program names.
 
 ## KPI Targets
-- Forecast Accuracy (MAPE): < 15%
-- Inventory Days of Supply: 14-21 days
-- Fill Rate: > 97%
-- Stockout Rate: < 2%
-- Obsolescence Rate: < 1.5%
+- Forecast Accuracy (MAPE): < 10%
+- Inventory Days of Supply: 20-35 days
+- Fill Rate: > 98%
+- Stockout Rate: < 1%
+- On-Time Delivery: > 95%
+- Labor Utilization: > 85%
+- Contract Compliance: > 98%
 """
 
 
 def build_agent(data: DataService, language: str = "en") -> Agent:
-    @tool(description="Analyze demand signals — POS sell-out, order history, seasonality, promotional lift. Returns SKU-level demand forecasts with confidence intervals.")
+    @tool(description="Analyze demand signals — program delivery schedules, MRO forecasting, OEM rate changes, aftermarket demand. Returns SKU-level demand forecasts with confidence intervals.")
     async def demand_sensing_agent(
         sku_ids: list[str] | None = None,
         category: str = "",
@@ -109,12 +123,12 @@ def build_agent(data: DataService, language: str = "en") -> Agent:
             "history": history_data,
             "signals": {
                 "trend": "stable",
-                "seasonality": "post-Ramadan normalization",
-                "promotion_active": any(h.get("promotion_flag") for h in history_data),
+                "seasonality": "program rate normalization",
+                "promotion_active": any(h.get("program_change_flag") for h in history_data),
             }
         }, default=str), state={})
 
-    @tool(description="Monitor inventory positions — stock levels, days-of-supply, stockout/excess risk scoring, ABC/XYZ classification.")
+    @tool(description="Monitor inventory positions — stock levels, days-of-supply, certification expiry, shelf-life, AOG risk scoring, ABC/XYZ classification.")
     async def inventory_risk_agent(
         sku_ids: list[str] | None = None,
         category: str = "",
@@ -152,7 +166,7 @@ def build_agent(data: DataService, language: str = "en") -> Agent:
             "avg_dos": sum(p.days_of_supply for p in positions) / max(len(positions), 1),
         }, default=str), state={})
 
-    @tool(description="Evaluate supply constraints — supplier lead times, production capacity, logistics bottlenecks, raw material availability.")
+    @tool(description="Evaluate supply constraints — titanium/specialty metal supply, forging capacity, NADCAP process availability, heat treat bottlenecks, logistics.")
     async def supply_constraint_agent(
         supplier_ids: list[str] | None = None,
         plant: str = "",
@@ -225,25 +239,28 @@ def build_agent(data: DataService, language: str = "en") -> Agent:
         critical_actions = [a for a in actions if a.urgency == "critical"]
 
         return state_update(text=json.dumps({
-            "date": "2026-05-18",
+            "date": "2026-06-13",
             "greeting": "Good morning. Here's your daily supply chain briefing.",
             "kpis": kpis.model_dump(),
             "kpi_status": {
-                "forecast_accuracy": "on_track" if kpis.forecast_accuracy_mape < 15 else "at_risk",
-                "fill_rate": "at_risk" if kpis.fill_rate < 97 else "on_track",
-                "stockout_rate": "at_risk" if kpis.stockout_rate > 2 else "on_track",
-                "inventory_dos": "on_track" if 14 <= kpis.inventory_dos <= 21 else "at_risk",
+                "forecast_accuracy": "on_track" if kpis.forecast_accuracy_mape < 10 else "at_risk",
+                "fill_rate": "at_risk" if kpis.fill_rate < 98 else "on_track",
+                "stockout_rate": "at_risk" if kpis.stockout_rate > 1 else "on_track",
+                "inventory_dos": "on_track" if 20 <= kpis.inventory_dos <= 35 else "at_risk",
+                "on_time_delivery": "on_track" if kpis.on_time_delivery > 95 else "at_risk",
+                "labor_utilization": "on_track" if kpis.labor_utilization_pct > 85 else "at_risk",
+                "contract_compliance": "on_track" if kpis.contract_compliance_pct > 98 else "at_risk",
             },
             "critical_alerts": [a.model_dump() for a in alerts[:5]],
             "critical_actions": [a.model_dump() for a in critical_actions],
             "focus_areas": [
-                "Industrial Flour delayed shipment — activate contingency",
-                "Poultry Feed critically low — expedite or emergency procure",
-                "Post-Ramadan excess in oils and specialty — reduce safety stock",
+                "Ti-6Al-4V forging delivery at risk — activate alternate supplier",
+                "777X landing gear assembly behind schedule — expedite machining",
+                "NADCAP cert renewal due for heat treat supplier — ensure continuity",
             ],
         }, default=str), state={})
 
-    @tool(description="Get KPI dashboard data — forecast accuracy, fill rate, DOS, stockout rate, obsolescence, with trend.")
+    @tool(description="Get KPI dashboard data — forecast accuracy, fill rate, DOS, stockout rate, on-time delivery, labor utilization, contract compliance, with trend.")
     async def kpi_dashboard(
         period: str = "current_week",
     ) -> Content:
@@ -253,12 +270,14 @@ def build_agent(data: DataService, language: str = "en") -> Agent:
         return state_update(text=json.dumps({
             "current": kpis.model_dump(),
             "targets": {
-                "forecast_accuracy_mape": 15.0,
-                "inventory_dos_min": 14,
-                "inventory_dos_max": 21,
-                "fill_rate": 97.0,
-                "stockout_rate": 2.0,
-                "obsolescence_rate": 1.5,
+                "forecast_accuracy_mape": 10.0,
+                "inventory_dos_min": 20,
+                "inventory_dos_max": 35,
+                "fill_rate": 98.0,
+                "stockout_rate": 1.0,
+                "on_time_delivery": 95.0,
+                "labor_utilization": 85.0,
+                "contract_compliance": 98.0,
             },
             "trend": history,
             "period": period,
@@ -267,7 +286,7 @@ def build_agent(data: DataService, language: str = "en") -> Agent:
     @tool(description="""Run comprehensive scenario/what-if analysis using LLM-powered multi-agent pipeline.
 Interprets natural language scenarios, runs quantitative modeling, then adds qualitative LLM analysis including creative mitigations and cascading risk identification.
 
-scenario_text: Natural language description of the scenario (e.g., "What if flour demand spikes 60% due to wheat shortage")
+scenario_text: Natural language description of the scenario (e.g., "What if titanium supply is disrupted for 3 months")
 scenario_type: Optional hint - "demand_spike", "supplier_delay", "promotion", "capacity_loss", "multi_factor"
 parameters: Optional JSON with structured parameters if available
 
@@ -336,7 +355,7 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
                 "confidence_level": result.get("confidence_level", "medium"),
                 "feasibility": result.get("production_impact", {}).get("feasibility", ""),
                 "supply_coverage_pct": result.get("supply_impact", {}).get("supply_gap", {}).get("coverage_pct", 0),
-                "total_lost_sales_aed": result.get("inventory_impact", {}).get("aggregate", {}).get("total_lost_sales_aed", 0),
+                "total_lost_sales_cad": result.get("inventory_impact", {}).get("aggregate", {}).get("total_lost_sales_cad", 0),
             }
 
             return state_update(text=json.dumps(summary, default=str), state={})
@@ -344,7 +363,7 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
             logger.exception("Scenario analysis failed")
             return state_update(text=json.dumps({"error": str(e), "scenario_type": scenario_type}), state={})
 
-    @tool(description="Check supply chain alerts — stockout warnings, delivery delays, capacity issues, quality flags.")
+    @tool(description="Check supply chain alerts — stockout warnings, delivery delays, capacity issues, quality flags, AOG risk.")
     async def check_supply_alerts(
         severity: str = "",
         alert_type: str = "",
@@ -443,6 +462,91 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
                 "balanced": {"count": len(balanced), "actions": [a.model_dump() for a in balanced]},
                 "aggressive": {"count": len(aggressive), "actions": [a.model_dump() for a in aggressive]},
             },
+        }, default=str), state={})
+
+    @tool(description="Validate PO prices against contract ceilings. Returns variance analysis and flags overages.")
+    async def contract_price_validation(
+        po_ids: list[str] | None = None,
+    ) -> Content:
+        validations = await data.get_contract_validations(po_id=po_ids[0] if po_ids else "")
+        validation_data = [v.model_dump() for v in validations]
+
+        over_ceiling = [v for v in validations if v.status == "over_ceiling"]
+        no_contract = [v for v in validations if v.status == "no_contract"]
+
+        summary = f"Contract price validation: {len(validations)} POs checked. {len(over_ceiling)} over ceiling, {len(no_contract)} without contract."
+        if over_ceiling:
+            avg_variance = sum(v.variance_pct for v in over_ceiling) / len(over_ceiling)
+            summary += f" Average overage: {avg_variance:.1f}%."
+
+        return state_update(text=json.dumps({
+            "summary": summary,
+            "validations": validation_data,
+            "stats": {
+                "total_checked": len(validations),
+                "compliant": sum(1 for v in validations if v.status == "compliant"),
+                "over_ceiling": len(over_ceiling),
+                "no_contract": len(no_contract),
+            },
+        }, default=str), state={})
+
+    @tool(description="Run PO validation checks — quantity, lead time, duplicate detection, budget compliance. Returns validation results with flags.")
+    async def po_validation(
+        po_ids: list[str] | None = None,
+    ) -> Content:
+        validations = await data.get_po_validations(po_id=po_ids[0] if po_ids else "")
+        validation_data = [v.model_dump() for v in validations]
+
+        passed = [v for v in validations if v.status == "passed"]
+        failed = [v for v in validations if v.status == "failed"]
+        warnings = [v for v in validations if v.status == "warning"]
+
+        summary = f"PO validation: {len(validations)} orders checked. {len(passed)} passed, {len(warnings)} warnings, {len(failed)} failed."
+
+        return state_update(text=json.dumps({
+            "summary": summary,
+            "validations": validation_data,
+            "stats": {
+                "total_checked": len(validations),
+                "passed": len(passed),
+                "warnings": len(warnings),
+                "failed": len(failed),
+            },
+        }, default=str), state={})
+
+    @tool(description="Get daily labor utilization data — headcount, direct/indirect hours, overtime, efficiency by facility and date range.")
+    async def labor_utilization_dashboard(
+        facility: str = "",
+        date_range: str = "last_7_days",
+    ) -> Content:
+        days = 7
+        if "14" in date_range or "2_week" in date_range:
+            days = 14
+        elif "30" in date_range or "month" in date_range:
+            days = 30
+
+        records = await data.get_daily_labor(facility=facility, days=days)
+        record_data = [r.model_dump() for r in records]
+
+        avg_efficiency = sum(r.efficiency_pct for r in records) / max(len(records), 1)
+        total_overtime = sum(r.overtime_hours for r in records)
+        total_direct = sum(r.direct_hours for r in records)
+        total_indirect = sum(r.indirect_hours for r in records)
+
+        summary = f"Labor utilization ({facility or 'all facilities'}): {len(records)} records over {days} days. Avg efficiency: {avg_efficiency:.1f}%. Total overtime: {total_overtime:.0f}h."
+
+        return state_update(text=json.dumps({
+            "summary": summary,
+            "records": record_data,
+            "stats": {
+                "avg_efficiency_pct": round(avg_efficiency, 1),
+                "total_direct_hours": round(total_direct, 1),
+                "total_indirect_hours": round(total_indirect, 1),
+                "total_overtime_hours": round(total_overtime, 1),
+                "direct_to_indirect_ratio": round(total_direct / max(total_indirect, 1), 2),
+            },
+            "facility": facility or "all",
+            "days": days,
         }, default=str), state={})
 
     @tool(description="Generate S&OP PowerPoint presentation deck via multi-agent pipeline (Planner → Content → Designer → Critic → Repair).")
@@ -586,7 +690,7 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
 
             spec = await supervisor.generate(request, data_context, on_progress=on_progress)
             spec_dict = spec.model_dump()
-            title = spec_dict.get("title", f"AGI Food — {template.replace('_', ' ').title()}")
+            title = spec_dict.get("title", f"Héroux-Devtek — {template.replace('_', ' ').title()}")
 
             from .reportgen.schemas import DocSpec as DocSpecModel
             report_type = "doc" if isinstance(spec, DocSpecModel) else "sheet"
@@ -622,7 +726,7 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
             suggestions.append({
                 "id": "sug_1",
                 "action_text": f"Review {len(critical)} critical replenishment actions",
-                "action_text_ar": f"مراجعة {len(critical)} إجراءات تجديد حرجة",
+                "action_text_fr": f"Examiner {len(critical)} actions de réapprovisionnement critiques",
                 "type": "review_actions",
                 "priority": "critical",
             })
@@ -630,21 +734,21 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
             suggestions.append({
                 "id": "sug_2",
                 "action_text": f"Approve {len(high)} high-priority orders",
-                "action_text_ar": f"الموافقة على {len(high)} أوامر عالية الأولوية",
+                "action_text_fr": f"Approuver {len(high)} commandes haute priorité",
                 "type": "approve_orders",
                 "priority": "high",
             })
         suggestions.append({
             "id": "sug_3",
             "action_text": "Generate weekly S&OP deck for committee review",
-            "action_text_ar": "إنشاء عرض S&OP الأسبوعي لمراجعة اللجنة",
+            "action_text_fr": "Générer le rapport S&OP hebdomadaire pour examen du comité",
             "type": "generate_report",
             "priority": "medium",
         })
         suggestions.append({
             "id": "sug_4",
-            "action_text": "Run demand spike scenario for summer planning",
-            "action_text_ar": "تشغيل سيناريو ارتفاع الطلب لتخطيط الصيف",
+            "action_text": "Run titanium supply disruption scenario for risk planning",
+            "action_text_fr": "Exécuter le scénario de perturbation d'approvisionnement en titane",
             "type": "scenario_analysis",
             "priority": "medium",
         })
@@ -655,18 +759,20 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
     from .config import settings
 
     instructions = SYSTEM_INSTRUCTIONS
-    if language == "ar":
-        instructions += "\nIMPORTANT: The user prefers Arabic. Respond entirely in Arabic (العربية)."
+    if language == "fr":
+        instructions += "\nIMPORTANT: The user prefers French. Respond entirely in French (Français)."
+    elif language == "es":
+        instructions += "\nIMPORTANT: The user prefers Spanish. Respond entirely in Spanish (Español)."
 
     client = OpenAIChatClient(
         model=settings.azure_openai_deployment,
-        azure_endpoint=settings.azure_openai_endpoint,
+        base_url=settings.openai_base_url,
         api_key=settings.azure_openai_api_key,
     )
 
     return Agent(
         client=client,
-        name="Rashid",
+        name="Atlas",
         instructions=instructions,
         tools=[
             demand_sensing_agent,
@@ -685,5 +791,8 @@ The pipeline: Planner → Impact Analyzer → Mitigation Designer → Risk Asses
             generate_sop_deck,
             generate_report,
             suggest_actions,
+            contract_price_validation,
+            po_validation,
+            labor_utilization_dashboard,
         ],
     )

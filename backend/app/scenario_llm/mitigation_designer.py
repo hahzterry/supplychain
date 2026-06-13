@@ -5,17 +5,17 @@ import json
 import logging
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are a supply chain mitigation strategist for AGI Food Division (UAE FMCG).
+You are a supply chain mitigation strategist for Héroux-Devtek Inc. (Canadian aerospace).
 Given a scenario and its impacts, propose creative and practical mitigations.
 
 For each mitigation, provide:
 - Specific actionable step (not generic advice)
-- Estimated cost in AED
+- Estimated cost in CAD
 - Expected fill rate recovery percentage
 - Implementation lead time in days
 - Priority: critical, high, medium, low
@@ -34,7 +34,7 @@ Return JSON:
     "mitigation_options": [
         {
             "action": "Specific action description",
-            "cost_aed": 25000,
+            "cost_cad": 25000,
             "fill_rate_recovery": 1.5,
             "lead_time_days": 3,
             "priority": "critical",
@@ -43,7 +43,7 @@ Return JSON:
         }
     ],
     "total_recovery_potential_pct": 4.5,
-    "total_estimated_cost_aed": 150000,
+    "total_estimated_cost_cad": 150000,
     "implementation_sequence": ["Step 1", "Step 2", "Step 3"]
 }
 """
@@ -51,9 +51,9 @@ Return JSON:
 
 class MitigationDesigner:
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint, api_key=api_key,
-            api_version="2024-12-01-preview", timeout=60.0,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
+            api_key=api_key, timeout=60.0,
         )
         self._model = model
 
@@ -62,7 +62,7 @@ class MitigationDesigner:
         lines = await data_service.get_production_lines()
 
         supplier_info = ", ".join(f"{s.name} ({s.country}, {s.reliability_score}% reliable)" for s in suppliers[:5])
-        line_info = ", ".join(f"{l.line_name} ({l.current_utilization_pct}% util, {l.capacity_mt_per_day} MT/day)" for l in lines)
+        line_info = ", ".join(f"{l.line_name} ({l.current_utilization_pct}% util, {l.capacity_units_per_day} units/day)" for l in lines)
 
         summary_stats = impacts.get("demand_impact", {}).get("summary_stats", {})
         kpi_deltas = impacts.get("kpi_projection", {}).get("deltas", {})
@@ -98,6 +98,6 @@ class MitigationDesigner:
             return {
                 "mitigation_options": impacts.get("kpi_projection", {}).get("mitigation_options", []),
                 "total_recovery_potential_pct": 0,
-                "total_estimated_cost_aed": 0,
+                "total_estimated_cost_cad": 0,
                 "implementation_sequence": [],
             }

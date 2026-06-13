@@ -26,7 +26,17 @@ class DemandAnalyzer:
 
         for sku in skus:
             total_forecast = forecast_map.get(sku.id, 0)
-            baseline_weekly = total_forecast / forecast_count if total_forecast > 0 else 50.0
+            inv = inv_map.get(sku.id)
+            current_stock = inv.available_stock if inv else 0
+            current_dos = inv.days_of_supply if inv else 0
+
+            if total_forecast > 0:
+                baseline_weekly = total_forecast / forecast_count
+            elif current_dos > 0 and current_stock > 0:
+                baseline_weekly = current_stock / (current_dos / 7)
+            else:
+                baseline_weekly = current_stock / 4 if current_stock > 0 else 1.0
+
             multiplier = self._compute_multiplier(scenario_type, params, sku)
 
             if multiplier <= 1.0:
@@ -35,9 +45,6 @@ class DemandAnalyzer:
             adjusted_weekly = baseline_weekly * multiplier
             delta_pct = (multiplier - 1.0) * 100
 
-            inv = inv_map.get(sku.id)
-            current_stock = inv.available_stock if inv else 0
-            current_dos = inv.days_of_supply if inv else 0
             weeks_to_stockout = current_stock / adjusted_weekly if adjusted_weekly > 0 else 99
 
             severity = "critical" if weeks_to_stockout < 2 else "warning" if weeks_to_stockout < 4 else "safe"
@@ -89,9 +96,17 @@ class DemandAnalyzer:
 
         elif scenario_type == "supplier_delay":
             delay_days = params.get("delay_days", 14)
-            if categories and sku.category.value.lower() not in [c.lower() for c in categories]:
-                return 1.0
             urgency = min(1.0, delay_days / 21)
+            cat_lower = sku.category.value.lower()
+            cats_lower = [c.lower() for c in categories] if categories else []
+
+            if cats_lower:
+                if cat_lower in cats_lower:
+                    return 1.0 + 0.25 * abc_weight * urgency
+                downstream = {"landing gear", "actuation systems", "structures", "hydraulics", "mro parts"}
+                if cat_lower in downstream:
+                    return 1.0 + 0.12 * abc_weight * urgency
+                return 1.0
             return 1.0 + 0.15 * abc_weight * urgency
 
         elif scenario_type == "promotion":
@@ -104,9 +119,18 @@ class DemandAnalyzer:
             return 1.0 + (uplift_pct / 100) * abc_weight
 
         elif scenario_type == "capacity_loss":
-            if categories and sku.category.value.lower() not in [c.lower() for c in categories]:
+            disruption_pct = params.get("disruption_pct", 50)
+            cat_lower = sku.category.value.lower()
+            cats_lower = [c.lower() for c in categories] if categories else []
+
+            if cats_lower:
+                if cat_lower in cats_lower:
+                    return 1.0 + (disruption_pct / 100) * abc_weight
+                downstream = {"landing gear", "actuation systems", "structures", "hydraulics", "mro parts"}
+                if cat_lower in downstream:
+                    return 1.0 + (disruption_pct / 100) * 0.5 * abc_weight
                 return 1.0
-            return 1.0 + 0.2 * abc_weight
+            return 1.0 + (disruption_pct / 100) * abc_weight
 
         return 1.0
 

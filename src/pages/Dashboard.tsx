@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  makeStyles, tokens, Card, CardHeader, Text, Badge, Button,
+  makeStyles, tokens, Card, CardHeader, Text, Badge,
   Spinner,
 } from '@fluentui/react-components';
 import {
@@ -20,7 +20,6 @@ const useStyles = makeStyles({
   chartsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
   alertsList: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' },
   alertItem: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '4px', backgroundColor: tokens.colorNeutralBackground3 },
-  quickActions: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '12px' },
 });
 
 const RISK_COLORS = { critical: '#d32f2f', warning: '#f57c00', normal: '#388e3c', excess: '#1565c0' };
@@ -50,7 +49,7 @@ export default function Dashboard() {
     fetch('/api/alerts?severity=critical', { headers }).then(r => r.json()).then(setAlerts);
   }, []);
 
-  if (!kpis) return <Spinner label="Loading..." />;
+  if (!kpis) return <Spinner label={t('common.loading')} />;
 
   const riskData = Object.entries(riskMatrix).map(([name, value]) => ({ name, value }));
 
@@ -58,26 +57,40 @@ export default function Dashboard() {
     <div className={styles.root}>
       <Text size={500} weight="bold">{t('dashboard.title')}</Text>
 
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[
+          { label: t('dashboard.chip.brief'), message: 'Give me the morning supply brief' },
+          { label: t('dashboard.chip.alerts'), message: 'Show me all critical supply chain alerts' },
+          { label: t('dashboard.chip.kpi'), message: 'Summarize this week\'s KPI performance' },
+          { label: t('dashboard.chip.risk'), message: 'Which SKUs are at highest risk of stockout?' },
+        ].map((s, i) => (
+          <button key={i} onClick={() => setPendingChatMessage(s.message)} style={{
+            borderRadius: 18, border: '1px solid #e0d4b0', background: '#fdf8ee',
+            padding: '6px 14px', fontSize: 12, color: '#8B6914', cursor: 'pointer',
+          }}>{s.label}</button>
+        ))}
+      </div>
+
       <div className={styles.kpiRow}>
         <Card className={styles.kpiCard}>
           <Text className={styles.kpiValue}>{kpis.forecast_accuracy_mape}%</Text>
           <Text className={styles.kpiLabel}>{t('dashboard.forecastAccuracy')} (MAPE)</Text>
-          <Text className={styles.kpiTarget}>Target: &lt; 15%</Text>
+          <Text className={styles.kpiTarget}>{t('dashboard.target.mape')}</Text>
         </Card>
         <Card className={styles.kpiCard}>
           <Text className={styles.kpiValue}>{kpis.inventory_dos}</Text>
           <Text className={styles.kpiLabel}>{t('dashboard.inventoryDOS')}</Text>
-          <Text className={styles.kpiTarget}>Target: 14-21 days</Text>
+          <Text className={styles.kpiTarget}>{t('dashboard.target.dos')}</Text>
         </Card>
         <Card className={styles.kpiCard}>
           <Text className={styles.kpiValue}>{kpis.fill_rate}%</Text>
           <Text className={styles.kpiLabel}>{t('dashboard.fillRate')}</Text>
-          <Text className={styles.kpiTarget}>Target: &gt; 97%</Text>
+          <Text className={styles.kpiTarget}>{t('dashboard.target.fill')}</Text>
         </Card>
         <Card className={styles.kpiCard}>
           <Text className={styles.kpiValue}>{kpis.stockout_rate}%</Text>
           <Text className={styles.kpiLabel}>{t('dashboard.stockoutRate')}</Text>
-          <Text className={styles.kpiTarget}>Target: &lt; 2%</Text>
+          <Text className={styles.kpiTarget}>{t('dashboard.target.stockout')}</Text>
         </Card>
         <Card className={styles.kpiCard}>
           <Text className={styles.kpiValue}>{kpis.alerts_open}</Text>
@@ -117,14 +130,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader header={<Text weight="semibold">{t('dashboard.quickActions')}</Text>} />
-        <div className={styles.quickActions}>
-          <Button appearance="outline" onClick={() => setPendingChatMessage('Give me the morning supply brief')}>{t('dashboard.runBrief')}</Button>
-          <Button appearance="outline" onClick={() => setPendingChatMessage('Check inventory stockout risks')}>{t('dashboard.checkRisks')}</Button>
-          <Button appearance="outline" onClick={() => setPendingChatMessage('Generate S&OP report')}>{t('dashboard.genReport')}</Button>
-        </div>
-      </Card>
     </div>
   );
 }

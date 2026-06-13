@@ -42,11 +42,11 @@ const useStyles = makeStyles({
 });
 
 const SCENARIO_SUGGESTIONS = [
-  { label: 'Demand Spike: Flour & Sugar +40%', message: 'Run scenario analysis: 40% demand spike across flour and sugar categories' },
-  { label: 'Supplier Delay: 21 days (Ramadan)', message: 'Run scenario analysis: Primary supplier delayed 21 days during Ramadan peak demand period' },
-  { label: 'Promotion: Dairy +50% for 4 weeks', message: 'Run scenario analysis: Promote all dairy products with 50% demand uplift for 4 weeks' },
-  { label: 'Production Line Down 10 days', message: 'Run scenario analysis: Production Line L03 down for 10 days due to maintenance overrun' },
-  { label: 'Multi-factor: Spike + Delay', message: 'Run scenario analysis: Demand spike 30% in oils and fats combined with supplier delay of 14 days' },
+  { labelKey: 'scenarios.chip.rateIncrease', message: 'Run scenario analysis: Airbus A220 program rate increase of 30% over next 6 months' },
+  { labelKey: 'scenarios.chip.forgingDelay', message: 'Run scenario analysis: Primary titanium forging supplier delayed 28 days due to facility maintenance' },
+  { labelKey: 'scenarios.chip.aog', message: 'Run scenario analysis: AOG emergency requiring 3 B737 nose landing gear assemblies within 72 hours' },
+  { labelKey: 'scenarios.chip.titanium', message: 'Run scenario analysis: Titanium supply disrupted 60% for 3 months due to geopolitical sanctions' },
+  { labelKey: 'scenarios.chip.multiFactor', message: 'Run scenario analysis: A320 program rate increase 20% combined with forging supplier delay of 14 days' },
 ];
 
 interface ScenarioResult {
@@ -127,13 +127,13 @@ interface SkuProjection {
   projected_dos: number;
   stockout_week: number | null;
   safety_stock_breached: boolean;
-  projected_lost_sales_aed: number;
+  projected_lost_sales_cad: number;
 }
 
 interface SupplierAlt {
   id: string;
   name: string;
-  available_capacity_mt: number;
+  available_capacity_units: number;
   lead_time_days: number;
   reliability: number;
   cost_premium_pct: number;
@@ -144,7 +144,7 @@ interface ProductionLine {
   name: string;
   plant: string;
   current_utilization: number;
-  spare_capacity_mt_day: number;
+  spare_capacity_units_day: number;
 }
 
 interface ProductionOpt {
@@ -156,7 +156,7 @@ interface ProductionOpt {
 
 interface MitigationOpt {
   action: string;
-  cost_aed: number;
+  cost_cad: number;
   fill_rate_recovery: number;
   lead_time_days: number;
   priority: string;
@@ -300,7 +300,7 @@ export default function ScenarioPlanner() {
 
       <Card className={styles.inputCard}>
         <Text weight="semibold" size={300} style={{ marginBottom: 10, display: 'block' }}>
-          Quick Scenarios
+          {t('scenarios.quickScenarios')}
         </Text>
         <div className={styles.chips}>
           {SCENARIO_SUGGESTIONS.map((s, i) => (
@@ -310,17 +310,17 @@ export default function ScenarioPlanner() {
               onClick={() => handleChipClick(s.message)}
               disabled={running}
             >
-              {s.label}
+              {t(s.labelKey)}
             </button>
           ))}
         </div>
 
         <div style={{ marginTop: 16 }}>
           <Text weight="semibold" size={300} style={{ marginBottom: 6, display: 'block' }}>
-            Custom Scenario
+            {t('scenarios.customScenario')}
           </Text>
           <Textarea
-            placeholder="Describe your scenario... e.g., 'What if wheat prices spike 25% and our main flour supplier is delayed 3 weeks during Ramadan?'"
+            placeholder={t('scenarios.placeholder')}
             value={scenarioText}
             onChange={(_, d) => setScenarioText(d.value)}
             style={{ width: '100%', minHeight: 80 }}
@@ -332,7 +332,7 @@ export default function ScenarioPlanner() {
             disabled={running || !scenarioText.trim()}
             style={{ marginTop: 8 }}
           >
-            Run Analysis
+            {t('scenarios.runAnalysis')}
           </Button>
         </div>
       </Card>
@@ -351,8 +351,8 @@ export default function ScenarioPlanner() {
           </TabList>
 
           {activeTab === 'summary' && <SummaryTab result={result} styles={styles} t={t} />}
-          {activeTab === 'skus' && <AffectedSkusTab result={result} />}
-          {activeTab === 'timeline' && <TimelineTab result={result} />}
+          {activeTab === 'skus' && <AffectedSkusTab result={result} t={t} />}
+          {activeTab === 'timeline' && <TimelineTab result={result} t={t} />}
           {activeTab === 'mitigation' && <MitigationTab result={result} styles={styles} t={t} />}
         </>
       )}
@@ -361,10 +361,10 @@ export default function ScenarioPlanner() {
       {history.length > 0 && (
         <Card style={{ padding: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text weight="semibold" size={400}>Scenario History</Text>
+            <Text weight="semibold" size={400}>{t('scenarios.history')}</Text>
             {compareIds.size === 2 && (
               <Button appearance="primary" size="small" onClick={() => setShowComparison(true)}>
-                Compare Selected ({compareIds.size})
+                {t('scenarios.compareSelected')} ({compareIds.size})
               </Button>
             )}
           </div>
@@ -372,10 +372,10 @@ export default function ScenarioPlanner() {
             <TableHeader>
               <TableRow>
                 <TableHeaderCell style={{ width: 40 }}></TableHeaderCell>
-                <TableHeaderCell>Scenario</TableHeaderCell>
-                <TableHeaderCell>Type</TableHeaderCell>
-                <TableHeaderCell>SKUs Affected</TableHeaderCell>
-                <TableHeaderCell>Date</TableHeaderCell>
+                <TableHeaderCell>{t('nav.scenarios')}</TableHeaderCell>
+                <TableHeaderCell>{t('scenarios.type')}</TableHeaderCell>
+                <TableHeaderCell>{t('scenarios.skusAffected')}</TableHeaderCell>
+                <TableHeaderCell>{t('common.date')}</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -413,13 +413,14 @@ export default function ScenarioPlanner() {
         <ScenarioComparison
           scenarios={history.filter(h => compareIds.has(h.id))}
           onClose={() => setShowComparison(false)}
+          t={t}
         />
       )}
     </div>
   );
 }
 
-function ScenarioComparison({ scenarios, onClose }: { scenarios: HistoryEntry[]; onClose: () => void }) {
+function ScenarioComparison({ scenarios, onClose, t }: { scenarios: HistoryEntry[]; onClose: () => void; t: (k: string) => string }) {
   if (scenarios.length < 2) return null;
   const [a, b] = scenarios;
   const allKpiKeys = [...new Set([...Object.keys(a.kpi_impact || {}), ...Object.keys(b.kpi_impact || {})])];
@@ -427,8 +428,8 @@ function ScenarioComparison({ scenarios, onClose }: { scenarios: HistoryEntry[];
   return (
     <Card style={{ padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Text weight="semibold" size={400}>Scenario Comparison</Text>
-        <Button appearance="subtle" size="small" onClick={onClose}>Close</Button>
+        <Text weight="semibold" size={400}>{t('scenarios.comparison')}</Text>
+        <Button appearance="subtle" size="small" onClick={onClose}>{t('common.close')}</Button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <Card style={{ padding: 12, background: tokens.colorNeutralBackground3 }}>
@@ -444,9 +445,9 @@ function ScenarioComparison({ scenarios, onClose }: { scenarios: HistoryEntry[];
         <TableHeader>
           <TableRow>
             <TableHeaderCell>KPI</TableHeaderCell>
-            <TableHeaderCell>Scenario A</TableHeaderCell>
-            <TableHeaderCell>Scenario B</TableHeaderCell>
-            <TableHeaderCell>Delta (B-A)</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.scenarioA')}</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.scenarioB')}</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.deltaBA')}</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -487,15 +488,15 @@ function SummaryTab({ result, styles, t }: { result: ScenarioResult; styles: any
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className={styles.grid3}>
         <Card className={styles.statCard}>
-          <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>Total Affected SKUs</Text>
+          <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{t('scenarios.totalAffected')}</Text>
           <Text size={700} weight="bold" style={{ display: 'block', marginTop: 4 }}>{stats.total_affected_skus}</Text>
         </Card>
         <Card className={styles.statCard}>
-          <Text size={200} style={{ color: '#c41e3a' }}>Critical</Text>
+          <Text size={200} style={{ color: '#c41e3a' }}>{t('scenarios.critical')}</Text>
           <Text size={700} weight="bold" style={{ display: 'block', marginTop: 4, color: '#c41e3a' }}>{stats.critical_skus}</Text>
         </Card>
         <Card className={styles.statCard}>
-          <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>Avg Demand Increase</Text>
+          <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{t('scenarios.avgDemandIncrease')}</Text>
           <Text size={700} weight="bold" style={{ display: 'block', marginTop: 4 }}>{stats.avg_demand_increase_pct}%</Text>
         </Card>
       </div>
@@ -511,8 +512,8 @@ function SummaryTab({ result, styles, t }: { result: ScenarioResult; styles: any
                 <YAxis fontSize={11} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="Baseline" fill="#90caf9" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="Projected" fill="#1565c0" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Baseline" fill="#90caf9" radius={[3, 3, 0, 0]} name={t('scenarios.baseline')} />
+                <Bar dataKey="Projected" fill="#1565c0" radius={[3, 3, 0, 0]} name={t('scenarios.projected')} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -524,7 +525,7 @@ function SummaryTab({ result, styles, t }: { result: ScenarioResult; styles: any
 
           {kpi.target_breaches.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <Text weight="semibold" size={200} style={{ color: '#c41e3a' }}>Target Breaches:</Text>
+              <Text weight="semibold" size={200} style={{ color: '#c41e3a' }}>{t('scenarios.targetBreaches')}:</Text>
               <ul style={{ margin: '4px 0', paddingLeft: 16 }}>
                 {kpi.target_breaches.map((b, i) => (
                   <li key={i}><Text size={200} style={{ color: '#c41e3a' }}>{b}</Text></li>
@@ -545,7 +546,7 @@ function SummaryTab({ result, styles, t }: { result: ScenarioResult; styles: any
       </div>
 
       <Card style={{ padding: 16 }}>
-        <Text weight="semibold" size={400}>KPI Impact Deltas</Text>
+        <Text weight="semibold" size={400}>{t('scenarios.kpiDeltas')}</Text>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
           {Object.entries(kpi.deltas).map(([key, val]) => (
             <div key={key} style={{
@@ -568,27 +569,27 @@ function SummaryTab({ result, styles, t }: { result: ScenarioResult; styles: any
   );
 }
 
-function AffectedSkusTab({ result }: { result: ScenarioResult }) {
+function AffectedSkusTab({ result, t }: { result: ScenarioResult; t: (k: string) => string }) {
   const skus = result.demand_impact.affected_skus;
 
   return (
     <Card style={{ padding: 16, overflow: 'auto' }}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <Badge color="danger" appearance="filled">{result.demand_impact.summary_stats.critical_skus} Critical</Badge>
-        <Badge color="warning" appearance="filled">{result.demand_impact.summary_stats.warning_skus} Warning</Badge>
-        <Badge color="success" appearance="filled">{result.demand_impact.summary_stats.safe_skus} Safe</Badge>
+        <Badge color="danger" appearance="filled">{result.demand_impact.summary_stats.critical_skus} {t('scenarios.critical')}</Badge>
+        <Badge color="warning" appearance="filled">{result.demand_impact.summary_stats.warning_skus} {t('scenarios.warning')}</Badge>
+        <Badge color="success" appearance="filled">{result.demand_impact.summary_stats.safe_skus} {t('scenarios.safe')}</Badge>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHeaderCell>SKU</TableHeaderCell>
-            <TableHeaderCell>Category</TableHeaderCell>
+            <TableHeaderCell>{t('common.sku')}</TableHeaderCell>
+            <TableHeaderCell>{t('common.category')}</TableHeaderCell>
             <TableHeaderCell>ABC</TableHeaderCell>
-            <TableHeaderCell>Baseline / Adjusted</TableHeaderCell>
-            <TableHeaderCell>Delta %</TableHeaderCell>
-            <TableHeaderCell>Weeks to Stockout</TableHeaderCell>
-            <TableHeaderCell>Current DOS</TableHeaderCell>
-            <TableHeaderCell>Severity</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.baselineAdj')}</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.deltaPct')}</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.weeksToStockout')}</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.currentDos')}</TableHeaderCell>
+            <TableHeaderCell>{t('scenarios.severity')}</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -605,7 +606,7 @@ function AffectedSkusTab({ result }: { result: ScenarioResult }) {
                 <TableCell><Text size={200}>{sku.current_dos}</Text></TableCell>
                 <TableCell>
                   <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: sev.bg, color: sev.text }}>
-                    {sku.severity.toUpperCase()}
+                    {t(`scenarios.${sku.severity}`).toUpperCase()}
                   </span>
                 </TableCell>
               </TableRow>
@@ -617,14 +618,14 @@ function AffectedSkusTab({ result }: { result: ScenarioResult }) {
   );
 }
 
-function TimelineTab({ result }: { result: ScenarioResult }) {
+function TimelineTab({ result, t }: { result: ScenarioResult; t: (k: string) => string }) {
   const demandTimeline = result.demand_impact.weekly_timeline;
   const inventoryTimeline = result.inventory_impact.timeline;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Card style={{ padding: 16 }}>
-        <Text weight="semibold" size={400}>Demand: Baseline vs Adjusted (8-Week)</Text>
+        <Text weight="semibold" size={400}>{t('scenarios.demandChart')}</Text>
         <div style={{ height: 250, marginTop: 12 }}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <AreaChart data={demandTimeline}>
@@ -633,15 +634,15 @@ function TimelineTab({ result }: { result: ScenarioResult }) {
               <YAxis fontSize={11} />
               <Tooltip />
               <Legend />
-              <Area type="monotone" dataKey="total_baseline_demand" name="Baseline" stroke="#90caf9" fill="#e3f2fd" />
-              <Area type="monotone" dataKey="total_adjusted_demand" name="Adjusted" stroke="#1565c0" fill="#bbdefb" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="total_baseline_demand" name={t('scenarios.baseline')} stroke="#90caf9" fill="#e3f2fd" />
+              <Area type="monotone" dataKey="total_adjusted_demand" name={t('scenarios.adjusted')} stroke="#1565c0" fill="#bbdefb" fillOpacity={0.6} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card style={{ padding: 16 }}>
-        <Text weight="semibold" size={400}>Inventory Depletion & Stockout Risk</Text>
+        <Text weight="semibold" size={400}>{t('scenarios.inventoryDepletion')}</Text>
         <div style={{ height: 250, marginTop: 12 }}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <LineChart data={inventoryTimeline}>
@@ -651,16 +652,16 @@ function TimelineTab({ result }: { result: ScenarioResult }) {
               <YAxis yAxisId="right" orientation="right" fontSize={11} />
               <Tooltip />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="total_stock_mt" name="Total Stock (MT)" stroke="#2e7d32" strokeWidth={2} />
-              <Line yAxisId="left" type="monotone" dataKey="net_position" name="Net Position" stroke="#c41e3a" strokeWidth={2} strokeDasharray="5 5" />
-              <Line yAxisId="right" type="monotone" dataKey="skus_stockout" name="SKUs in Stockout" stroke="#ff6f00" strokeWidth={2} />
+              <Line yAxisId="left" type="monotone" dataKey="total_stock_mt" name={t('scenarios.totalStock')} stroke="#2e7d32" strokeWidth={2} />
+              <Line yAxisId="left" type="monotone" dataKey="net_position" name={t('scenarios.netPosition')} stroke="#c41e3a" strokeWidth={2} strokeDasharray="5 5" />
+              <Line yAxisId="right" type="monotone" dataKey="skus_stockout" name={t('scenarios.skusInStockout')} stroke="#ff6f00" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card style={{ padding: 16 }}>
-        <Text weight="semibold" size={400}>Stock vs Demand (Inventory Simulation)</Text>
+        <Text weight="semibold" size={400}>{t('scenarios.stockVsDemand')}</Text>
         <div style={{ height: 220, marginTop: 12 }}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={inventoryTimeline}>
@@ -669,8 +670,8 @@ function TimelineTab({ result }: { result: ScenarioResult }) {
               <YAxis fontSize={11} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="total_stock_mt" name="Stock (MT)" fill="#66bb6a" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="total_demand_mt" name="Demand (MT)" fill="#ef5350" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="total_stock_mt" name={t('scenarios.stockMt')} fill="#66bb6a" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="total_demand_mt" name={t('scenarios.demandMt')} fill="#ef5350" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -687,7 +688,7 @@ function MitigationTab({ result, styles, t }: { result: ScenarioResult; styles: 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Card style={{ padding: 16 }}>
-        <Text weight="semibold" size={400}>Mitigation Options</Text>
+        <Text weight="semibold" size={400}>{t('scenarios.mitigationOptions')}</Text>
         <div style={{ marginTop: 12 }}>
           {mitigations.map((m, i) => (
             <div key={i} className={styles.mitigationCard} style={{
@@ -707,9 +708,9 @@ function MitigationTab({ result, styles, t }: { result: ScenarioResult; styles: 
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
-                <Text size={200} style={{ color: '#666' }}>Cost: AED {m.cost_aed.toLocaleString()}</Text>
-                <Text size={200} style={{ color: '#666' }}>Fill Rate Recovery: +{m.fill_rate_recovery}%</Text>
-                <Text size={200} style={{ color: '#666' }}>Lead Time: {m.lead_time_days} days</Text>
+                <Text size={200} style={{ color: '#666' }}>{t('scenarios.cost')}: CAD {m.cost_cad.toLocaleString()}</Text>
+                <Text size={200} style={{ color: '#666' }}>{t('scenarios.fillRateRecovery')}: +{m.fill_rate_recovery}%</Text>
+                <Text size={200} style={{ color: '#666' }}>{t('scenarios.leadTimeDays')}: {m.lead_time_days} {t('scenarios.days')}</Text>
               </div>
             </div>
           ))}
@@ -718,23 +719,23 @@ function MitigationTab({ result, styles, t }: { result: ScenarioResult; styles: 
 
       <div className={styles.grid2}>
         <Card style={{ padding: 16 }}>
-          <Text weight="semibold" size={400}>Alternative Suppliers</Text>
+          <Text weight="semibold" size={400}>{t('scenarios.altSuppliers')}</Text>
           <div style={{ marginTop: 12 }}>
             <Table size="small">
               <TableHeader>
                 <TableRow>
-                  <TableHeaderCell>Supplier</TableHeaderCell>
-                  <TableHeaderCell>Capacity (MT)</TableHeaderCell>
-                  <TableHeaderCell>Lead Time</TableHeaderCell>
-                  <TableHeaderCell>Reliability</TableHeaderCell>
-                  <TableHeaderCell>Premium</TableHeaderCell>
+                  <TableHeaderCell>{t('common.supplier')}</TableHeaderCell>
+                  <TableHeaderCell>{t('scenarios.capacityMt')}</TableHeaderCell>
+                  <TableHeaderCell>{t('common.leadTime')}</TableHeaderCell>
+                  <TableHeaderCell>{t('common.reliability')}</TableHeaderCell>
+                  <TableHeaderCell>{t('scenarios.premium')}</TableHeaderCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {supply.alternative_suppliers.map(s => (
                   <TableRow key={s.id}>
                     <TableCell><Text size={200}>{s.name}</Text></TableCell>
-                    <TableCell><Text size={200}>{s.available_capacity_mt}</Text></TableCell>
+                    <TableCell><Text size={200}>{s.available_capacity_units}</Text></TableCell>
                     <TableCell><Text size={200}>{s.lead_time_days}d</Text></TableCell>
                     <TableCell><Text size={200}>{s.reliability}%</Text></TableCell>
                     <TableCell><Text size={200}>+{s.cost_premium_pct}%</Text></TableCell>
@@ -744,31 +745,31 @@ function MitigationTab({ result, styles, t }: { result: ScenarioResult; styles: 
             </Table>
             <div style={{ marginTop: 8, padding: '6px 10px', background: '#f5f5f5', borderRadius: 6 }}>
               <Text size={200}>
-                Supply Gap Coverage: <strong>{supply.supply_gap.coverage_pct}%</strong> |
-                Needed: {supply.supply_gap.total_needed_mt} MT |
-                Available: {supply.supply_gap.available_mt} MT
+                {t('scenarios.supplyGap')}: <strong>{supply.supply_gap.coverage_pct}%</strong> |
+                {t('scenarios.needed')}: {supply.supply_gap.total_needed_mt} MT |
+                {t('scenarios.available')}: {supply.supply_gap.available_mt} MT
               </Text>
             </div>
           </div>
         </Card>
 
         <Card style={{ padding: 16 }}>
-          <Text weight="semibold" size={400}>Production Capacity</Text>
+          <Text weight="semibold" size={400}>{t('scenarios.productionCapacity')}</Text>
           <div style={{ marginTop: 8, marginBottom: 12 }}>
             <Badge
               color={production.feasibility === 'full' ? 'success' : production.feasibility === 'partial' ? 'warning' : 'danger'}
               appearance="filled"
             >
-              Feasibility: {production.feasibility.toUpperCase()}
+              {t('scenarios.feasibility')}: {production.feasibility.toUpperCase()}
             </Badge>
           </div>
           <Table size="small">
             <TableHeader>
               <TableRow>
-                <TableHeaderCell>Line</TableHeaderCell>
-                <TableHeaderCell>Plant</TableHeaderCell>
-                <TableHeaderCell>Utilization</TableHeaderCell>
-                <TableHeaderCell>Spare (MT/day)</TableHeaderCell>
+                <TableHeaderCell>{t('common.line')}</TableHeaderCell>
+                <TableHeaderCell>{t('common.plant')}</TableHeaderCell>
+                <TableHeaderCell>{t('common.utilization')}</TableHeaderCell>
+                <TableHeaderCell>{t('scenarios.spareMtDay')}</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -777,14 +778,14 @@ function MitigationTab({ result, styles, t }: { result: ScenarioResult; styles: 
                   <TableCell><Text size={200}>{line.name}</Text></TableCell>
                   <TableCell><Text size={200}>{line.plant}</Text></TableCell>
                   <TableCell><Text size={200}>{line.current_utilization}%</Text></TableCell>
-                  <TableCell><Text size={200}>{line.spare_capacity_mt_day}</Text></TableCell>
+                  <TableCell><Text size={200}>{line.spare_capacity_units_day}</Text></TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
           {production.production_options.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <Text size={200} weight="semibold">Surge Options:</Text>
+              <Text size={200} weight="semibold">{t('scenarios.surgeOptions')}:</Text>
               <ul style={{ margin: '4px 0', paddingLeft: 16 }}>
                 {production.production_options.map((opt, i) => (
                   <li key={i}><Text size={200}>{opt.option} (+{opt.extra_mt_per_day} MT/day for {opt.duration_days}d)</Text></li>

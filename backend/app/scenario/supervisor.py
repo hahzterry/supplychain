@@ -1,6 +1,7 @@
-"""Scenario analysis supervisor — orchestrates 5-step pipeline with progress callbacks."""
+"""Scenario analysis supervisor — orchestrates 6-step pipeline with progress callbacks."""
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -10,17 +11,23 @@ from .inventory_simulator import InventorySimulator
 from .supply_evaluator import SupplyEvaluator
 from .production_checker import ProductionChecker
 from .kpi_projector import KPIProjector
+from .analyst import ScenarioAnalyst
+
+logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[str, str], Awaitable[None]]
 
 
 class ScenarioSupervisor:
-    def __init__(self):
+    def __init__(self, model: str = "", azure_endpoint: str = "", api_key: str = ""):
         self.demand = DemandAnalyzer()
         self.inventory = InventorySimulator()
         self.supply = SupplyEvaluator()
         self.production = ProductionChecker()
         self.kpi = KPIProjector()
+        self._analyst: ScenarioAnalyst | None = None
+        if model and azure_endpoint and api_key:
+            self._analyst = ScenarioAnalyst(model=model, azure_endpoint=azure_endpoint, api_key=api_key)
 
     async def run(
         self,
@@ -28,6 +35,7 @@ class ScenarioSupervisor:
         scenario_type: str,
         params: dict[str, Any],
         on_progress: ProgressCallback | None = None,
+        scenario_text: str = "",
     ) -> dict[str, Any]:
         async def _progress(step: str, status: str):
             if on_progress:
@@ -54,7 +62,7 @@ class ScenarioSupervisor:
         kpi = await self.kpi.project(data, demand, inventory, supply, production)
         await _progress("kpi_projection", "done")
 
-        return {
+        result = {
             "scenario_type": scenario_type,
             "parameters": params,
             "demand_impact": demand.model_dump(),
@@ -71,3 +79,19 @@ class ScenarioSupervisor:
             "timeline": inventory.timeline,
             "mitigation_options": [m.model_dump() for m in kpi.mitigation_options],
         }
+
+        if self._analyst and scenario_text:
+            await _progress("analysis", "running")
+            llm_analysis = await self._analyst.analyze(scenario_text, scenario_type, params, result)
+            if llm_analysis.get("risk_assessment"):
+                result["risk_assessment"] = llm_analysis["risk_assessment"]
+            if llm_analysis.get("recommended_actions"):
+                result["recommended_actions"] = llm_analysis["recommended_actions"]
+            if llm_analysis.get("mitigation_actions"):
+                mits = result["mitigation_options"]
+                for i, action_text in enumerate(llm_analysis["mitigation_actions"]):
+                    if i < len(mits) and action_text:
+                        mits[i]["action"] = action_text
+            await _progress("analysis", "done")
+
+        return result

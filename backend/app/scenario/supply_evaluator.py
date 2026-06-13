@@ -44,11 +44,11 @@ class SupplyEvaluator:
                         continue
                     shared_materials = set(s.material_types) & set(delayed.material_types)
                     if shared_materials or s.reliability_score > 85:
-                        available_cap = s.total_capacity_mt - s.current_orders
+                        available_cap = s.total_capacity_units - s.current_orders
                         alternatives.append(SupplierAlternative(
                             id=s.id,
                             name=s.name,
-                            available_capacity_mt=round(max(0, available_cap), 0),
+                            available_capacity_units=round(max(0, available_cap), 0),
                             lead_time_days=s.avg_lead_time_days,
                             reliability=s.reliability_score,
                             cost_premium_pct=round(max(0, (100 - s.reliability_score) * 0.15), 1),
@@ -66,11 +66,11 @@ class SupplyEvaluator:
 
         else:
             for s in sorted(suppliers, key=lambda x: x.reliability_score, reverse=True)[:5]:
-                available_cap = s.total_capacity_mt - s.current_orders
+                available_cap = s.total_capacity_units - s.current_orders
                 alternatives.append(SupplierAlternative(
                     id=s.id,
                     name=s.name,
-                    available_capacity_mt=round(max(0, available_cap), 0),
+                    available_capacity_units=round(max(0, available_cap), 0),
                     lead_time_days=s.avg_lead_time_days,
                     reliability=s.reliability_score,
                     cost_premium_pct=round(max(0, (100 - s.reliability_score) * 0.1), 1),
@@ -85,7 +85,7 @@ class SupplyEvaluator:
                         "expected_delivery": str(po.expected_delivery),
                     })
 
-        total_alt_capacity = sum(a.available_capacity_mt for a in alternatives)
+        total_alt_capacity = sum(a.available_capacity_units for a in alternatives)
         needed = params.get("spike_pct", params.get("uplift_pct", 30)) * 10
         fastest = min((a.lead_time_days for a in alternatives), default=0)
 

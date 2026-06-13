@@ -3,8 +3,8 @@ import { saveAs } from 'file-saver';
 import { uploadReport } from '../reports';
 import type { SheetSpec } from '../reports/types';
 
-const AGI_NAVY = '1A0A2E';
-const AGI_DARK_BLUE = '2E1452';
+const HD_NAVY = '001F3F';
+const HD_DARK = '001529';
 const HIGHLIGHT_COLORS: Record<string, string> = {
   green: 'D4EDDA',
   yellow: 'FFF3CD',
@@ -14,7 +14,7 @@ const HIGHLIGHT_COLORS: Record<string, string> = {
 
 export async function renderSheet(spec: SheetSpec): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'AGI Food';
+  workbook.creator = 'Héroux-Devtek';
   workbook.created = new Date();
 
   const sheet = workbook.addWorksheet(spec.sheet_name || 'Sheet1');
@@ -33,7 +33,7 @@ export async function renderSheet(spec: SheetSpec): Promise<void> {
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: `FF${AGI_DARK_BLUE}` },
+      fgColor: { argb: `FF${HD_DARK}` },
     };
     cell.alignment = { vertical: 'middle', horizontal: 'center' };
     cell.border = {
@@ -67,15 +67,15 @@ export async function renderSheet(spec: SheetSpec): Promise<void> {
   if (spec.summary_row) {
     const summaryExcelRow = sheet.addRow(spec.summary_row.map((v) => (v === null ? '' : v)));
     summaryExcelRow.eachCell((cell) => {
-      cell.font = { bold: true, name: 'Calibri', size: 11, color: { argb: `FF${AGI_NAVY}` } };
+      cell.font = { bold: true, name: 'Calibri', size: 11, color: { argb: `FF${HD_NAVY}` } };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FFF0F0F0' },
       };
       cell.border = {
-        top: { style: 'medium', color: { argb: `FF${AGI_NAVY}` } },
-        bottom: { style: 'medium', color: { argb: `FF${AGI_NAVY}` } },
+        top: { style: 'medium', color: { argb: `FF${HD_NAVY}` } },
+        bottom: { style: 'medium', color: { argb: `FF${HD_NAVY}` } },
       };
     });
   }
@@ -100,7 +100,7 @@ export async function renderSheet(spec: SheetSpec): Promise<void> {
 
   await uploadReport(blob, filename, {
     name: spec.title,
-    template: 'agi_food_sheet',
+    template: 'hd_sheet',
     format: 'xlsx',
     pages: 1,
   });

@@ -9,6 +9,7 @@ from .models import (
     KPIMetrics, SupplierContact, SupplierPerformanceRecord,
     SupplierCertification, AlternativeSupplier, MaintenanceEvent,
     QualityTestResult, ProductionRun,
+    Contract, ContractPriceValidation, POValidationResult, DailyLaborRecord,
 )
 from .mock_store import (
     SKUS, SKU_MAP, INVENTORY_POSITIONS, DEMAND_HISTORY, DEMAND_FORECASTS,
@@ -16,7 +17,8 @@ from .mock_store import (
     REPLENISHMENT_ACTIONS, SUPPLY_ALERTS, CURRENT_KPIS, KPI_HISTORY,
     SUPPLIER_CONTACTS, SUPPLIER_PERFORMANCE, SUPPLIER_CERTIFICATIONS,
     ALTERNATIVE_SUPPLIERS, MAINTENANCE_EVENTS, QUALITY_TEST_RESULTS,
-    PRODUCTION_RUNS,
+    PRODUCTION_RUNS, CONTRACTS, CONTRACT_VALIDATIONS, PO_VALIDATIONS,
+    DAILY_LABOR_RECORDS,
 )
 
 
@@ -89,6 +91,18 @@ class DataService(ABC):
 
     @abstractmethod
     async def get_production_runs(self, line_id: str) -> list[ProductionRun]: ...
+
+    @abstractmethod
+    async def get_contracts(self) -> list[Contract]: ...
+
+    @abstractmethod
+    async def get_contract_validations(self, po_id: str = "") -> list[ContractPriceValidation]: ...
+
+    @abstractmethod
+    async def get_po_validations(self, po_id: str = "") -> list[POValidationResult]: ...
+
+    @abstractmethod
+    async def get_daily_labor(self, facility: str = "", days: int = 7) -> list[DailyLaborRecord]: ...
 
 
 class MockDataService(DataService):
@@ -203,3 +217,24 @@ class MockDataService(DataService):
 
     async def get_production_runs(self, line_id: str) -> list[ProductionRun]:
         return [r for r in PRODUCTION_RUNS if r.line_id == line_id]
+
+    async def get_contracts(self) -> list[Contract]:
+        return CONTRACTS
+
+    async def get_contract_validations(self, po_id: str = "") -> list[ContractPriceValidation]:
+        if po_id:
+            return [v for v in CONTRACT_VALIDATIONS if v.po_id == po_id]
+        return CONTRACT_VALIDATIONS
+
+    async def get_po_validations(self, po_id: str = "") -> list[POValidationResult]:
+        if po_id:
+            return [v for v in PO_VALIDATIONS if v.po_id == po_id]
+        return PO_VALIDATIONS
+
+    async def get_daily_labor(self, facility: str = "", days: int = 7) -> list[DailyLaborRecord]:
+        from datetime import date, timedelta
+        cutoff = (date(2026, 6, 13) - timedelta(days=days)).isoformat()
+        results = [r for r in DAILY_LABOR_RECORDS if r.date >= cutoff]
+        if facility:
+            results = [r for r in results if facility.lower() in r.facility.lower()]
+        return results

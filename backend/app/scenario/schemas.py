@@ -42,7 +42,7 @@ class SkuProjection(BaseModel):
     stockout_week: int | None
     safety_stock_breached: bool
     projected_lost_sales_units: float
-    projected_lost_sales_aed: float
+    projected_lost_sales_cad: float
 
 
 class InventoryImpact(BaseModel):
@@ -54,7 +54,7 @@ class InventoryImpact(BaseModel):
 class SupplierAlternative(BaseModel):
     id: str
     name: str
-    available_capacity_mt: float
+    available_capacity_units: float
     lead_time_days: int
     reliability: float
     cost_premium_pct: float
@@ -83,7 +83,7 @@ class ProductionImpact(BaseModel):
 
 class MitigationOption(BaseModel):
     action: str
-    cost_aed: float
+    cost_cad: float
     fill_rate_recovery: float
     lead_time_days: int
     priority: str

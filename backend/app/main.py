@@ -1,4 +1,4 @@
-"""FastAPI application with AG-UI endpoint for RASHID multi-agent system."""
+"""FastAPI application with AG-UI endpoint for HD ATLAS multi-agent system."""
 from __future__ import annotations
 
 import app._patch_message_order  # noqa: F401  # fix CopilotKit message ordering
@@ -35,7 +35,7 @@ if settings.applicationinsights_connection_string and enable_instrumentation:
     except ImportError:
         pass
 
-app = FastAPI(title="RASHID Supply Chain API")
+app = FastAPI(title="HD Atlas Supply Chain API")
 
 
 class SessionMiddleware(BaseHTTPMiddleware):
@@ -67,13 +67,16 @@ agent = build_agent(data_service, language="en")
 
 ag_ui_agent = AgentFrameworkAgent(
     agent=agent,
-    name="rashid_orchestrator",
-    description="RASHID multi-agent system: orchestrator delegates to Demand Sensing, Inventory Risk, Supply Constraint, and Replenishment agents",
+    name="hd_orchestrator",
+    description="HD ATLAS multi-agent system: orchestrator delegates to Demand Sensing, Inventory Risk, Supply Constraint, and Replenishment agents",
 )
 
 
 def _fix_dangling_tool_calls(messages: list[dict]) -> list[dict]:
     """Fix conversations where a previous tool call never returned a result."""
+    # Filter reasoning messages (extended thinking from Kimi/o-series models)
+    messages = [m for m in messages if m.get("role") != "reasoning"]
+
     pending_call_ids: set[str] = set()
     result = []
 
@@ -154,9 +157,517 @@ if _static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 
+# ─── Chat SSE Endpoint ────────────────────────────────────────────────────
+
+import logging as _logging
+logger = _logging.getLogger(__name__)
+
+from fastapi.responses import StreamingResponse
+from openai import AsyncOpenAI
+from .presentation import format_presentation, PRESENTABLE_TOOLS
+
+_chat_sessions: dict[str, list[dict]] = {}
+_MAX_SESSION_MESSAGES = 20
+
+_openai_client = AsyncOpenAI(
+    base_url=settings.openai_base_url,
+    api_key=settings.azure_openai_api_key,
+    timeout=120.0,
+)
+
+
+
+from .agent import SYSTEM_INSTRUCTIONS
+
+TOOL_DEFS = [
+    {"type": "function", "function": {"name": "demand_sensing_agent", "description": "Analyze demand signals — program delivery schedules, MRO forecasting, OEM rate changes.", "parameters": {"type": "object", "properties": {"sku_ids": {"type": "array", "items": {"type": "string"}}, "category": {"type": "string"}, "horizon_weeks": {"type": "integer"}}, "required": []}}},
+    {"type": "function", "function": {"name": "inventory_risk_agent", "description": "Monitor inventory positions — stock levels, days-of-supply, certification expiry, AOG risk.", "parameters": {"type": "object", "properties": {"sku_ids": {"type": "array", "items": {"type": "string"}}, "category": {"type": "string"}, "risk_type": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "supply_constraint_agent", "description": "Evaluate supply constraints — titanium/specialty metal supply, forging capacity, NADCAP process availability.", "parameters": {"type": "object", "properties": {"supplier_ids": {"type": "array", "items": {"type": "string"}}, "plant": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "replenishment_agent", "description": "Generate replenishment recommendations — purchase orders, production priorities, safety stock adjustments.", "parameters": {"type": "object", "properties": {"category": {"type": "string"}, "urgency": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "morning_supply_brief", "description": "Get morning supply brief — daily KPIs, critical alerts, top risks, and recommended focus areas.", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "kpi_dashboard", "description": "Get KPI dashboard data — forecast accuracy, fill rate, DOS, stockout rate, on-time delivery.", "parameters": {"type": "object", "properties": {"period": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "scenario_analysis", "description": "Run comprehensive scenario/what-if analysis.", "parameters": {"type": "object", "properties": {"scenario_text": {"type": "string"}, "scenario_type": {"type": "string"}}, "required": ["scenario_text"]}}},
+    {"type": "function", "function": {"name": "check_supply_alerts", "description": "Check supply chain alerts — stockout warnings, delivery delays, capacity issues.", "parameters": {"type": "object", "properties": {"severity": {"type": "string"}, "alert_type": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "get_sku_detail", "description": "Get detailed SKU profile. Accepts SKU ID or name.", "parameters": {"type": "object", "properties": {"sku_id": {"type": "string"}}, "required": ["sku_id"]}}},
+    {"type": "function", "function": {"name": "get_supplier_detail", "description": "Get supplier detail — performance, certifications, orders.", "parameters": {"type": "object", "properties": {"supplier_id": {"type": "string"}}, "required": ["supplier_id"]}}},
+    {"type": "function", "function": {"name": "get_plant_detail", "description": "Get plant or production line detail.", "parameters": {"type": "object", "properties": {"plant_id": {"type": "string"}}, "required": ["plant_id"]}}},
+    {"type": "function", "function": {"name": "get_production_schedule", "description": "Get production schedule and capacity utilization.", "parameters": {"type": "object", "properties": {"plant": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "generate_sop_deck", "description": "Generate S&OP PowerPoint presentation deck.", "parameters": {"type": "object", "properties": {"template": {"type": "string"}, "focus_area": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "generate_report", "description": "Generate report document (Word, Excel, PDF).", "parameters": {"type": "object", "properties": {"template": {"type": "string"}, "format": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "labor_utilization_dashboard", "description": "Get daily labor utilization data.", "parameters": {"type": "object", "properties": {"facility": {"type": "string"}, "date_range": {"type": "string"}}, "required": []}}},
+    {"type": "function", "function": {"name": "contract_price_validation", "description": "Validate PO prices against contract ceilings.", "parameters": {"type": "object", "properties": {"po_ids": {"type": "array", "items": {"type": "string"}}}, "required": []}}},
+]
+
+TOOL_AGENT_NAMES = {
+    "demand_sensing_agent": "Demand Sensing",
+    "inventory_risk_agent": "Inventory Risk",
+    "supply_constraint_agent": "Supply Constraint",
+    "replenishment_agent": "Replenishment",
+    "morning_supply_brief": "Atlas AI",
+    "kpi_dashboard": "Atlas AI",
+    "scenario_analysis": "Scenario Planner",
+    "check_supply_alerts": "Atlas AI",
+    "get_sku_detail": "Atlas AI",
+    "get_supplier_detail": "Atlas AI",
+    "get_plant_detail": "Atlas AI",
+    "get_production_schedule": "Atlas AI",
+    "generate_sop_deck": "Deck Generator",
+    "generate_report": "Report Generator",
+    "labor_utilization_dashboard": "Atlas AI",
+    "contract_price_validation": "Atlas AI",
+}
+
+
+import re as _re
+
+
+def _parse_scenario_text(text: str) -> tuple[str, dict]:
+    """Extract scenario_type and params from free-text scenario description."""
+    text_lower = text.lower()
+    numbers = [float(m) for m in _re.findall(r'(\d+(?:\.\d+)?)', text)]
+
+    if any(w in text_lower for w in ("disrupt", "shortage", "capacity loss", "sanction")):
+        pct = next((n for n in numbers if n <= 100), 60)
+        return "capacity_loss", {"affected_categories": ["Raw Materials"], "disruption_pct": pct}
+
+    if any(w in text_lower for w in ("delay", "late", "maintenance")):
+        days = next((n for n in numbers if n <= 365), 14)
+        return "supplier_delay", {"delay_days": int(days), "affected_categories": ["Raw Materials"]}
+
+    if any(w in text_lower for w in ("spike", "surge", "increase", "rate")):
+        pct = next((n for n in numbers if n <= 200), 30)
+        return "demand_spike", {"spike_pct": pct}
+
+    if any(w in text_lower for w in ("promotion", "campaign")):
+        pct = next((n for n in numbers if n <= 100), 25)
+        return "promotion", {"uplift_pct": pct}
+
+    pct = next((n for n in numbers if n <= 100), 30)
+    return "demand_spike", {"spike_pct": pct}
+
+
+async def _execute_tool(name: str, args: dict) -> str:
+    """Execute a tool and return its result as a string."""
+    import json as _j
+    ds = data_service
+
+    if name == "demand_sensing_agent":
+        forecasts = await ds.get_demand_forecast(sku_id=args.get("sku_ids", [""])[0] if args.get("sku_ids") else "", horizon_weeks=args.get("horizon_weeks", 8))
+        history = await ds.get_demand_history(sku_id=args.get("sku_ids", [""])[0] if args.get("sku_ids") else "")
+        return _j.dumps({"forecasts": [f.model_dump() for f in forecasts[:12]], "history": [h.model_dump() for h in history[:8]]}, default=str)
+
+    elif name == "inventory_risk_agent":
+        # Map LLM-generated risk_type values to valid enum values
+        risk_type_raw = args.get("risk_type", "")
+        _RISK_MAP = {"stockout": "critical", "high": "critical", "low": "healthy", "at_risk": "critical", "at-risk": "critical"}
+        risk_level = _RISK_MAP.get(risk_type_raw.lower(), risk_type_raw) if risk_type_raw else ""
+        positions = await ds.get_inventory(risk_level=risk_level, category=args.get("category", ""))
+        if args.get("sku_ids"):
+            positions = [p for p in positions if p.sku_id in args["sku_ids"]]
+        critical = [p for p in positions if p.risk_level.value == "critical"]
+        warning = [p for p in positions if p.risk_level.value == "warning"]
+        avg_dos = sum(p.days_of_supply for p in positions) / len(positions) if positions else 0
+        return _j.dumps({"positions": [p.model_dump() for p in positions], "critical_count": len(critical), "warning_count": len(warning), "total": len(positions), "avg_dos": avg_dos}, default=str)
+
+    elif name == "supply_constraint_agent":
+        suppliers = await ds.get_suppliers()
+        if args.get("supplier_ids"):
+            suppliers = [s for s in suppliers if s.id in args["supplier_ids"]]
+        lines = await ds.get_production_lines(plant=args.get("plant", ""))
+        return _j.dumps({"suppliers": [s.model_dump() for s in suppliers], "production_lines": [l.model_dump() for l in lines]}, default=str)
+
+    elif name == "replenishment_agent":
+        actions = await ds.get_replenishment_actions()
+        if args.get("urgency") == "critical":
+            actions = [a for a in actions if a.urgency == "critical"]
+        return _j.dumps({"actions": [a.model_dump() for a in actions]}, default=str)
+
+    elif name == "morning_supply_brief":
+        kpis = await ds.get_kpis()
+        alerts = await ds.get_alerts(severity="critical")
+        return _j.dumps({"date": "2026-06-13", "kpis": kpis.model_dump(), "critical_alerts": [a.model_dump() for a in alerts[:5]]}, default=str)
+
+    elif name == "kpi_dashboard":
+        kpis = await ds.get_kpis()
+        return _j.dumps({"current": kpis.model_dump()}, default=str)
+
+    elif name == "scenario_analysis":
+        from .scenario.supervisor import ScenarioSupervisor
+        from .config import settings as _settings
+
+        session_id = current_session_id.get("default")
+        scenario_text = args.get("scenario_text", "")
+        scenario_type = args.get("scenario_type", "")
+
+        _VALID_TYPES = {"demand_spike", "supplier_delay", "promotion", "capacity_loss"}
+        if scenario_type in _VALID_TYPES:
+            sc_params = args.get("parameters", {})
+        else:
+            scenario_type, sc_params = _parse_scenario_text(scenario_text)
+
+        supervisor = ScenarioSupervisor(
+            model=_settings.azure_openai_deployment,
+            azure_endpoint=_settings.azure_openai_endpoint,
+            api_key=_settings.azure_openai_api_key,
+        )
+
+        import asyncio as _aio
+
+        async def _scenario_progress(step: str, status: str):
+            set_latest_generated({"scenario_progress": {"step": step, "status": status}}, session_id=session_id)
+            await _aio.sleep(0.4)
+
+        result = await supervisor.run(
+            data_service, scenario_type, sc_params,
+            on_progress=_scenario_progress, scenario_text=scenario_text,
+        )
+
+        set_latest_generated({"pending_scenario": result}, session_id=session_id)
+        save_scenario_result(result)
+
+        return _j.dumps(result, default=str)
+
+    elif name == "check_supply_alerts":
+        alerts = await ds.get_alerts(severity=args.get("severity", ""), alert_type=args.get("alert_type", ""))
+        return _j.dumps({"total": len(alerts), "alerts": [a.model_dump() for a in alerts]}, default=str)
+
+    elif name == "get_sku_detail":
+        sku = await ds.get_sku(args.get("sku_id", ""))
+        if not sku:
+            skus = await ds.get_skus()
+            sku = next((s for s in skus if args.get("sku_id", "").lower() in s.name.lower()), None)
+        if not sku:
+            return _j.dumps({"error": f"SKU {args.get('sku_id')} not found"})
+        return _j.dumps({"sku": sku.model_dump()}, default=str)
+
+    elif name == "get_supplier_detail":
+        supplier = await ds.get_supplier(args.get("supplier_id", ""))
+        if not supplier:
+            suppliers = await ds.get_suppliers()
+            supplier = next((s for s in suppliers if args.get("supplier_id", "").lower() in s.name.lower()), None)
+        if not supplier:
+            return _j.dumps({"error": f"Supplier {args.get('supplier_id')} not found"})
+        return _j.dumps({"supplier": supplier.model_dump()}, default=str)
+
+    elif name == "get_plant_detail":
+        lines = await ds.get_production_lines()
+        plant_lines = [l for l in lines if l.id == args.get("plant_id") or args.get("plant_id", "").lower() in l.plant.value.lower()]
+        return _j.dumps({"lines": [l.model_dump() for l in plant_lines]}, default=str)
+
+    elif name == "get_production_schedule":
+        lines = await ds.get_production_lines(plant=args.get("plant", ""))
+        return _j.dumps({"lines": [l.model_dump() for l in lines]}, default=str)
+
+    elif name == "generate_sop_deck":
+        from .pptgen import SupervisorAgent as DeckSupervisor, DeckRequest
+        from .config import settings as _settings
+        from datetime import date as _date
+
+        session_id = current_session_id.get("default")
+        template = args.get("template", "weekly_sop")
+        focus_area = args.get("focus_area", "")
+        deck_audience = args.get("audience", "S&OP Committee")
+
+        kpis = await ds.get_kpis()
+        alerts = await ds.get_alerts()
+        actions_data = await ds.get_replenishment_actions()
+        inv_data = await ds.get_inventory()
+        suppliers_data = await ds.get_suppliers()
+        forecasts_data = await ds.get_demand_forecast()
+
+        data_context = {
+            "kpis": kpis, "inventory": inv_data, "forecasts": forecasts_data,
+            "suppliers": suppliers_data, "actions": actions_data, "alerts": alerts,
+        }
+
+        supervisor = DeckSupervisor(
+            model=_settings.azure_openai_deployment,
+            azure_endpoint=_settings.azure_openai_endpoint,
+            api_key=_settings.azure_openai_api_key,
+        )
+        request_obj = DeckRequest(template=template, focus_area=focus_area, audience=deck_audience)
+
+        async def _deck_progress(step: str, status: str):
+            try:
+                set_latest_generated({"report_progress": {"step": step, "status": status}}, session_id=session_id)
+            except Exception:
+                pass
+
+        spec = await supervisor.generate(request_obj, data_context, on_progress=_deck_progress)
+        spec.date = _date.today().isoformat()
+        deck_dict = spec.model_dump()
+
+        set_latest_generated({
+            "pending_deck": deck_dict,
+            "report_meta": {"name": spec.title, "format": "pptx", "pages": len(spec.slides)},
+        }, session_id=session_id)
+
+        return _j.dumps({"status": "complete", "title": spec.title, "format": "pptx", "slides": len(spec.slides)})
+
+    elif name == "generate_report":
+        from .reportgen import ReportSupervisor, ReportRequest, ReportFormat
+        from .config import settings as _settings
+
+        session_id = current_session_id.get("default")
+        template = args.get("template", "inventory_status")
+        fmt = args.get("format", "xlsx")
+        focus_area = args.get("focus_area", "")
+        report_audience = args.get("audience", "S&OP Committee")
+
+        kpis = await ds.get_kpis()
+        inv_data = await ds.get_inventory()
+        actions_data = await ds.get_replenishment_actions()
+        suppliers_data = await ds.get_suppliers()
+        forecasts_data = await ds.get_demand_forecast()
+        alerts_data = await ds.get_alerts()
+
+        data_context = {
+            "kpis": kpis, "inventory": inv_data, "forecasts": forecasts_data,
+            "suppliers": suppliers_data, "actions": actions_data, "alerts": alerts_data,
+        }
+
+        request_obj = ReportRequest(
+            template=template, format=ReportFormat(fmt),
+            focus_area=focus_area, audience=report_audience,
+        )
+
+        supervisor = ReportSupervisor(
+            model=_settings.azure_openai_deployment,
+            azure_endpoint=_settings.azure_openai_endpoint,
+            api_key=_settings.azure_openai_api_key,
+        )
+
+        is_sheet = fmt == "xlsx"
+
+        def _report_progress(step: str, pct: float):
+            try:
+                step_map = {
+                    "planning": "doc_planner", "planning_complete": "doc_planner",
+                    "writing_content": "doc_content", "generating_spreadsheet": "sheet_generator",
+                    "complete": "sheet_generator" if is_sheet else "doc_content",
+                }
+                agent_step = step_map.get(step, step)
+                status = "done" if "complete" in step else "running"
+                set_latest_generated({"report_progress": {"step": agent_step, "status": status}}, session_id=session_id)
+            except Exception:
+                pass
+
+        spec = await supervisor.generate(request_obj, data_context, on_progress=_report_progress)
+        spec_dict = spec.model_dump()
+        title = spec_dict.get("title", f"Héroux-Devtek — {template.replace('_', ' ').title()}")
+
+        from .reportgen.schemas import DocSpec as _DocSpecModel
+        report_type = "doc" if isinstance(spec, _DocSpecModel) else "sheet"
+        pages = len(spec_dict.get("sections", [])) if report_type == "doc" else len(spec_dict.get("rows", []))
+
+        set_latest_generated({
+            "pending_report": {"type": report_type, "spec": spec_dict, "format": fmt},
+            "report_meta": {"name": title, "format": fmt, "pages": pages},
+        }, session_id=session_id)
+
+        return _j.dumps({"status": "complete", "title": title, "format": fmt, "pages": pages})
+
+    elif name == "labor_utilization_dashboard":
+        records = await ds.get_daily_labor(facility=args.get("facility", ""), days=7)
+        return _j.dumps({"records": [r.model_dump() for r in records]}, default=str)
+
+    elif name == "contract_price_validation":
+        validations = await ds.get_contract_validations(po_id=args.get("po_ids", [""])[0] if args.get("po_ids") else "")
+        return _j.dumps({"validations": [v.model_dump() for v in validations]}, default=str)
+
+    return _j.dumps({"error": f"Unknown tool: {name}"})
+
+
+@app.post("/api/chat")
+async def chat_stream(request: Request):
+    body = await request.json()
+    message = body.get("message", "")
+    session_id = body.get("session_id", "default")
+    language = body.get("language", "en")
+
+    # Get or create session history
+    if session_id not in _chat_sessions:
+        _chat_sessions[session_id] = []
+
+    history = _chat_sessions[session_id]
+    history.append({"role": "user", "content": message})
+
+    # Trim to max session length
+    if len(history) > _MAX_SESSION_MESSAGES:
+        history[:] = history[-_MAX_SESSION_MESSAGES:]
+
+    # Build system instruction
+    instructions = SYSTEM_INSTRUCTIONS
+    if language == "fr":
+        instructions += "\nIMPORTANT: The user prefers French. Respond entirely in French (Français)."
+    elif language == "es":
+        instructions += "\nIMPORTANT: The user prefers Spanish. Respond entirely in Spanish (Español)."
+
+    messages_for_api = [{"role": "system", "content": instructions}] + history
+
+    async def generate():
+        import json as _j
+        tools_called = []
+        all_tool_results: dict[str, str] = {}
+
+        try:
+            # Streaming with tool use loop
+            current_messages = list(messages_for_api)
+            max_iterations = 5
+
+            for _ in range(max_iterations):
+                stream = await _openai_client.chat.completions.create(
+                    model=settings.azure_openai_deployment,
+                    messages=current_messages,
+                    tools=TOOL_DEFS,
+                    stream=True,
+                    max_completion_tokens=4000,
+                )
+
+                tool_calls_in_progress: dict[int, dict] = {}
+                assistant_content = ""
+                finish_reason = None
+
+                async for chunk in stream:
+                    choice = chunk.choices[0] if chunk.choices else None
+                    if not choice:
+                        continue
+
+                    delta = choice.delta
+                    finish_reason = choice.finish_reason
+
+                    # Stream text content
+                    if delta and delta.content:
+                        assistant_content += delta.content
+                        yield f"event: delta\ndata: {_j.dumps({'content': delta.content})}\n\n"
+
+                    # Accumulate tool calls
+                    if delta and delta.tool_calls:
+                        for tc in delta.tool_calls:
+                            idx = tc.index
+                            if idx not in tool_calls_in_progress:
+                                tool_calls_in_progress[idx] = {"id": "", "name": "", "arguments": ""}
+                            if tc.id:
+                                tool_calls_in_progress[idx]["id"] = tc.id
+                            if tc.function and tc.function.name:
+                                tool_calls_in_progress[idx]["name"] = tc.function.name
+                            if tc.function and tc.function.arguments:
+                                tool_calls_in_progress[idx]["arguments"] += tc.function.arguments
+
+                # If no tool calls, we're done
+                if finish_reason != "tool_calls" or not tool_calls_in_progress:
+                    # Save assistant message to history
+                    if assistant_content:
+                        history.append({"role": "assistant", "content": assistant_content})
+                    break
+
+                # Process tool calls
+                tool_call_messages = []
+                for idx in sorted(tool_calls_in_progress.keys()):
+                    tc = tool_calls_in_progress[idx]
+                    tool_name = tc["name"]
+                    tools_called.append(tool_name)
+
+                    # Emit planning event
+                    agent_name = TOOL_AGENT_NAMES.get(tool_name, "Atlas AI")
+                    yield f"event: planning\ndata: {_j.dumps({'agent': agent_name, 'tool': tool_name})}\n\n"
+
+                    # Execute tool
+                    try:
+                        args = _j.loads(tc["arguments"]) if tc["arguments"] else {}
+                    except (ValueError, TypeError):
+                        args = {}
+
+                    result = await _execute_tool(tool_name, args)
+                    tool_call_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc["id"],
+                        "content": result,
+                    })
+
+                # Collect all tool results for combined presentation
+                for idx_p in sorted(tool_calls_in_progress.keys()):
+                    tc_p = tool_calls_in_progress[idx_p]
+                    if tc_p["name"] in PRESENTABLE_TOOLS:
+                        r_content = next((m["content"] for m in tool_call_messages if m["tool_call_id"] == tc_p["id"]), None)
+                        if r_content:
+                            all_tool_results[tc_p["name"]] = r_content
+
+                # Add assistant message with tool calls + tool results to messages
+                assistant_msg = {"role": "assistant", "content": assistant_content or None, "tool_calls": [
+                    {"id": tc["id"], "type": "function", "function": {"name": tc["name"], "arguments": tc["arguments"]}}
+                    for tc in [tool_calls_in_progress[i] for i in sorted(tool_calls_in_progress.keys())]
+                ]}
+                current_messages.append(assistant_msg)
+                current_messages.extend(tool_call_messages)
+                assistant_content = ""
+
+            # Emit executive presentation built from ALL tool results + final response
+            if all_tool_results:
+                from .presentation import format_combined_presentation
+                combined = format_combined_presentation(all_tool_results, assistant_content)
+                if combined:
+                    yield f"event: presentation\ndata: {_j.dumps(combined)}\n\n"
+
+            # Emit done event with suggestions
+            suggestions = _get_follow_up_suggestions(tools_called, language)
+            yield f"event: done\ndata: {_j.dumps({'suggestions': suggestions})}\n\n"
+
+        except Exception as e:
+            logger.exception("Chat stream error")
+            yield f"event: error\ndata: {_j.dumps({'message': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })
+
+
+@app.delete("/api/chat/{session_id}")
+async def clear_chat_session(session_id: str):
+    _chat_sessions.pop(session_id, None)
+    return {"cleared": True}
+
+
+def _get_follow_up_suggestions(tools_called: list[str], language: str) -> list[dict]:
+    """Generate contextual follow-up suggestions based on tools that were called."""
+    suggestions = []
+    if "morning_supply_brief" in tools_called or "kpi_dashboard" in tools_called:
+        suggestions = [
+            {"title": "Show critical alerts", "message": "Show me all critical supply alerts"},
+            {"title": "Inventory risk", "message": "What SKUs are at risk of stockout?"},
+            {"title": "Run scenario", "message": "What if titanium supply is disrupted for 2 months?"},
+        ]
+    elif "inventory_risk_agent" in tools_called:
+        suggestions = [
+            {"title": "Replenishment plan", "message": "Generate replenishment recommendations for critical items"},
+            {"title": "Supplier details", "message": "Show me the suppliers for critical SKUs"},
+            {"title": "Run scenario", "message": "What if demand spikes 30% next quarter?"},
+        ]
+    elif "demand_sensing_agent" in tools_called:
+        suggestions = [
+            {"title": "Inventory impact", "message": "How does this forecast affect inventory levels?"},
+            {"title": "Production schedule", "message": "Show the current production schedule"},
+            {"title": "Generate report", "message": "Generate a demand forecast report"},
+        ]
+    elif "scenario_analysis" in tools_called:
+        suggestions = [
+            {"title": "Mitigation plan", "message": "What mitigation actions should we take?"},
+            {"title": "KPI impact", "message": "Show me the projected KPI impact"},
+            {"title": "Another scenario", "message": "What if the disruption lasts 6 months instead?"},
+        ]
+    else:
+        suggestions = [
+            {"title": "Morning brief", "message": "Give me the morning supply brief"},
+            {"title": "KPI overview", "message": "Show me the current KPI dashboard"},
+            {"title": "Critical alerts", "message": "What are the critical supply alerts?"},
+        ]
+    return suggestions
+
+
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "agent": "rashid", "data_source": settings.data_source_type}
+    return {"status": "ok", "agent": "atlas", "data_source": settings.data_source_type}
 
 
 from pydantic import BaseModel
@@ -307,9 +818,14 @@ async def create_scenario(request: Request):
     body = await request.json()
     scenario_type = body.get("scenario_type", "demand_spike")
     params = body.get("parameters", {})
+    scenario_text = body.get("scenario_text", "")
 
-    supervisor = ScenarioSupervisor()
-    result = await supervisor.run(data_service, scenario_type, params)
+    supervisor = ScenarioSupervisor(
+        model=settings.azure_openai_deployment,
+        azure_endpoint=settings.azure_openai_endpoint,
+        api_key=settings.azure_openai_api_key,
+    )
+    result = await supervisor.run(data_service, scenario_type, params, scenario_text=scenario_text)
 
     result["id"] = uuid4().hex[:12]
     _scenarios.insert(0, result)
@@ -339,6 +855,12 @@ async def mark_alert_read(alert_id: str):
 
 # ─── KPIs API ──────────────────────────────────────────────────────────────
 
+@app.get("/api/labor")
+async def get_labor(facility: str = "", days: int = 7):
+    results = await data_service.get_daily_labor(facility=facility, days=days)
+    return [r.model_dump() for r in results]
+
+
 @app.get("/api/kpis")
 async def get_kpis():
     kpis = await data_service.get_kpis()
@@ -358,7 +880,7 @@ async def search_supplier_news(supplier_id: str):
     supplier = await data_service.get_supplier(supplier_id)
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    query = f"{supplier.name} food supply chain news latest developments {supplier.country}"
+    query = f"{supplier.name} aerospace supply chain news latest developments {supplier.country}"
     result = await web_search_context(query)
     return {"supplier_id": supplier_id, "supplier_name": supplier.name, "context": result}
 
@@ -366,7 +888,7 @@ async def search_supplier_news(supplier_id: str):
 @app.get("/api/search/commodity/{commodity}")
 async def search_commodity(commodity: str):
     from .web_search import web_search_context
-    query = f"{commodity} commodity price market UAE Middle East latest 2026"
+    query = f"{commodity} aerospace material price market North America latest 2026"
     result = await web_search_context(query)
     return {"commodity": commodity, "context": result}
 
@@ -447,10 +969,10 @@ async def get_plant_detail_endpoint(plant_id: str):
         })
     plant_name = plant_lines[0].plant.value
     avg_util = sum(l.current_utilization_pct for l in plant_lines) / len(plant_lines)
-    total_capacity = sum(l.capacity_mt_per_day for l in plant_lines)
+    total_capacity = sum(l.capacity_units_per_day for l in plant_lines)
     return {
         "plant_name": plant_name,
-        "total_capacity_mt_per_day": total_capacity,
+        "total_capacity_units_per_day": total_capacity,
         "avg_utilization_pct": round(avg_util, 1),
         "line_count": len(plant_lines),
         "lines": line_details,

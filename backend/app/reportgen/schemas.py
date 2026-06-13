@@ -37,10 +37,10 @@ class DocSpec(BaseModel):
     title: str
     subtitle: str = ""
     date: str = ""
-    author: str = "Rashid AI"
+    author: str = "Atlas AI"
     executive_summary: str = ""
     sections: list[DocSection] = Field(default_factory=list)
-    footer_text: str = "AGI Food — Internal Confidential"
+    footer_text: str = "Héroux-Devtek — Internal Confidential"
 
 
 # ─── Spreadsheet (XLSX) Schemas ──────────────────────────────────────────────

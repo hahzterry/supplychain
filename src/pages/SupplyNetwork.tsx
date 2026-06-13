@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useI18n } from '../i18n';
 import { getSessionHeader } from '../App';
 import { useDetailDrawer } from '../contexts/DetailDrawerContext';
+import { setPendingChatMessage } from '../components/CopilotActions';
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: '24px' },
@@ -43,7 +44,7 @@ export default function SupplyNetwork() {
     });
   }, []);
 
-  if (loading) return <Spinner label="Loading..." />;
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   const capacityData = lines.map(l => ({ name: l.line_name.replace('Line ', 'L'), utilization: l.current_utilization_pct }));
 
@@ -52,17 +53,31 @@ export default function SupplyNetwork() {
       <Text size={500} weight="bold">{t('supply.title')}</Text>
       <Text size={300} style={{ color: tokens.colorNeutralForeground3 }}>{t('supply.subtitle')}</Text>
 
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {[
+          { label: t('supply.chip.reliability'), message: 'Which suppliers have reliability below 90% this quarter?' },
+          { label: t('supply.chip.leadTime'), message: 'Identify suppliers with increasing lead times' },
+          { label: t('supply.chip.singleSource'), message: 'Which critical parts have single-source suppliers?' },
+          { label: t('supply.chip.capacity'), message: 'Show current capacity utilization and bottlenecks' },
+        ].map((s, i) => (
+          <button key={i} onClick={() => setPendingChatMessage(s.message)} style={{
+            borderRadius: 18, border: '1px solid #e0d4b0', background: '#fdf8ee',
+            padding: '6px 14px', fontSize: 12, color: '#8B6914', cursor: 'pointer',
+          }}>{s.label}</button>
+        ))}
+      </div>
+
       <div className={styles.grid}>
         <Card>
           <CardHeader header={<Text weight="semibold">{t('supply.suppliers')}</Text>} />
           <Table size="small">
             <TableHeader>
               <TableRow>
-                <TableHeaderCell>Supplier</TableHeaderCell>
-                <TableHeaderCell>Country</TableHeaderCell>
-                <TableHeaderCell>Lead Time</TableHeaderCell>
-                <TableHeaderCell>Reliability</TableHeaderCell>
-                <TableHeaderCell>Orders</TableHeaderCell>
+                <TableHeaderCell>{t('common.supplier')}</TableHeaderCell>
+                <TableHeaderCell>{t('common.country')}</TableHeaderCell>
+                <TableHeaderCell>{t('common.leadTime')}</TableHeaderCell>
+                <TableHeaderCell>{t('common.reliability')}</TableHeaderCell>
+                <TableHeaderCell>{t('common.orders')}</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>

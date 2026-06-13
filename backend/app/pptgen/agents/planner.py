@@ -14,7 +14,7 @@ import logging
 import uuid
 from typing import Any
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..schemas import (
     DeckMetadata,
@@ -76,10 +76,10 @@ TEMPLATE_GUIDELINES: dict[str, dict[str, Any]] = {
 }
 
 SYSTEM_PROMPT = """\
-You are a supply chain presentation planner for AGI Food Division.
+You are a supply chain presentation planner for Héroux-Devtek Inc..
 Your job is to create a slide outline (structure only, no content) for a PowerPoint deck.
 
-AGI Food Division includes: Grand Mills (flour milling), Jenan (branded products), Animal Feed, Specialty & Industrial.
+Héroux-Devtek Inc. includes: Longueuil (landing gear assembly), Kitchener (actuation), Springfield (military programs), Nottingham (European ops), Laval (hydraulics).
 
 Available slide layouts:
 - title: Title slide with main title and subtitle
@@ -170,10 +170,9 @@ class PlannerAgent:
     """Creates the slide outline structure for a deck."""
 
     def __init__(self, model: str, azure_endpoint: str, api_key: str) -> None:
-        self._client = AsyncAzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self._client = AsyncOpenAI(
+            base_url=f"{azure_endpoint.rstrip('/')}/openai/v1",
             api_key=api_key,
-            api_version="2024-12-01-preview",
             timeout=60.0,
         )
         self._model = model
@@ -199,11 +198,20 @@ class PlannerAgent:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,
+            max_completion_tokens=8000,
             response_format={"type": "json_object"},
         )
 
         raw = response.choices[0].message.content or "{}"
-        parsed = json.loads(raw)
+        if not raw.strip() or raw.strip() == "{}":
+            logger.warning("PlannerAgent: empty response from LLM, using fallback")
+            raw = "{}"
+
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as e:
+            logger.warning("PlannerAgent: JSON parse failed (%s), using fallback outline", e)
+            parsed = {}
 
         # Handle both {"slides": [...]} and [...] formats
         if isinstance(parsed, dict):
@@ -233,6 +241,21 @@ class PlannerAgent:
         # Enforce slide count limits
         template_info = TEMPLATE_GUIDELINES.get(request.template, TEMPLATE_GUIDELINES["weekly_sop"])
         min_slides, max_slides = template_info["slide_range"]
+
+        # If no slides parsed, use the recommended structure as fallback
+        if not slides:
+            logger.warning("PlannerAgent: no slides parsed, using recommended_structure fallback")
+            for item in template_info.get("recommended_structure", []):
+                layout_str = item.get("layout", "bullets")
+                slide = SlideSpec(
+                    id=f"slide-{uuid.uuid4().hex[:8]}",
+                    title=item.get("purpose", "Untitled"),
+                    subtitle="",
+                    layout=SlideLayout(layout_str) if layout_str in {l.value for l in SlideLayout} else SlideLayout.BULLETS,
+                    content=SlideContent(),
+                    speaker_notes="",
+                )
+                slides.append(slide)
 
         if len(slides) < min_slides:
             logger.warning(
