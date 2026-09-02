@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useI18n, type Lang } from '../i18n';
+import { useI18n } from '../i18n';  // ← Remove ", type Lang"
 import { getSessionHeader } from '../App';
 
 const STEPS = [
