@@ -27,7 +27,7 @@ interface LineData {
 export default function SupplyNetwork() {
   const styles = useStyles();
   const { t } = useI18n();
-  const { openSupplierDetail, openLineDetail } = useDetailDrawer();
+  const { openSupplierDetail } = useDetailDrawer(); // ← Removed openLineDetail
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
   const [lines, setLines] = useState<LineData[]>([]);
   const [loading, setLoading] = useState(true);
